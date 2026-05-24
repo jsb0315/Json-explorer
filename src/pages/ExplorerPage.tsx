@@ -6,6 +6,7 @@ import { MillerColumns } from '../components/MillerColumns';
 import { FloatingDataManager } from '../components/FloatingDataManager';
 import { useExplorerState } from '../hooks/useExplorerState';
 import { cn } from '../utils/cn';
+import { extractOid } from '../utils/oid';
 
 const styles = {
   page: 'h-screen w-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.16),_transparent_45%),linear-gradient(180deg,#f8fafc_0%,#ffffff_45%,#f1f5f9_100%)] text-slate-900',
@@ -106,7 +107,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
         metrics: { engagement: { day: 3, week: 12 } },
       },
       {
-        _id: '664efb9ea1c0c9b439a5f002',
+        _id: { $oid: '664efb9ea1c0c9b439a5f002' },
         title: 'Realtime demo',
         author: 'Marco',
         status: 'draft',
@@ -117,10 +118,10 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
             { title: 'metrics', blocks: [{ type: 'chart', value: { kind: 'line', points: [1, 4, 9, 7] } }] },
           ],
         },
-        refs: { primary: '664efb9ea1c0c9b439a5f003', siblings: ['664efb9ea1c0c9b439a5f001'] },
+        refs: { primary: { $oid: '664efb9ea1c0c9b439a5f003' }, siblings: [{ $oid: '664efb9ea1c0c9b439a5f001' }] },
       },
       {
-        _id: '664efb9ea1c0c9b439a5f003',
+        _id: { $oid: '664efb9ea1c0c9b439a5f003' },
         title: 'Campus hackathon',
         author: 'Yuna',
         status: 'hot',
@@ -147,7 +148,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
     status: 'ok',
     data: [
       {
-        _id: '664efb9ea1c0c9b439a6c201',
+        _id: { $oid: '664efb9ea1c0c9b439a6c201' },
         name: 'Robotics Lab',
         lead: { name: 'Hana', year: 4 },
         members: 28,
@@ -155,7 +156,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
         socials: { instagram: '@robotlab', discord: 'robotics-lab' },
       },
       {
-        _id: '664efb9ea1c0c9b439a6c202',
+        _id: { $oid: '664efb9ea1c0c9b439a6c202' },
         name: 'Fintech Society',
         lead: { name: 'Minho', year: 3 },
         members: 42,
@@ -175,14 +176,14 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
     status: 'ok',
     data: [
       {
-        _id: '664efb9ea1c0c9b439a7d501',
+        _id: { $oid: '664efb9ea1c0c9b439a7d501' },
         name: 'Sora Park',
         role: 'organizer',
         profile: { major: 'Design', year: 2, timezone: 'Asia/Seoul' },
         socials: { github: 'sora-park', twitter: '@sora' },
       },
       {
-        _id: '664efb9ea1c0c9b439a7d502',
+        _id: { $oid: '664efb9ea1c0c9b439a7d502' },
         name: 'Leo Kang',
         role: 'mentor',
         profile: { major: 'Robotics', year: 4, timezone: 'Asia/Seoul' },
@@ -201,7 +202,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
     status: 'ok',
     data: [
       {
-        _id: '664efb9ea1c0c9b439b1d301',
+        _id: { $oid: '664efb9ea1c0c9b439b1d301' },
         title: 'AI tutor micro-saas',
         stage: 'validate',
         target: { region: 'apac', segment: 'students' },
@@ -209,7 +210,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
         owners: ['u-201', 'u-204'],
       },
       {
-        _id: '664efb9ea1c0c9b439b1d302',
+        _id: { $oid: '664efb9ea1c0c9b439b1d302' },
         title: 'Local events radar',
         stage: 'prototype',
         target: { region: 'us', segment: 'creators' },
@@ -229,7 +230,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
     status: 'ok',
     data: [
       {
-        _id: '664efb9ea1c0c9b439b2e401',
+        _id: { $oid: '664efb9ea1c0c9b439b2e401' },
         customer: { id: 'u-301', name: 'Alex' },
         items: [
           { sku: 'wireless-mic', qty: 1, price: 129 },
@@ -237,15 +238,15 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
         ],
         status: 'packing',
         delivery: { etaDays: 2, carrier: 'FastShip' },
-        productRefs: ['664efb9ea1c0c9b439b3f501'],
+        productRefs: [{ $oid: '664efb9ea1c0c9b439b3f501' }],
       },
       {
-        _id: '664efb9ea1c0c9b439b2e402',
+        _id: { $oid: '664efb9ea1c0c9b439b2e402' },
         customer: { id: 'u-309', name: 'Chloe' },
         items: [{ sku: 'studio-light', qty: 1, price: 89 }],
         status: 'delivered',
         delivery: { etaDays: 0, carrier: 'FastShip' },
-        productRefs: ['664efb9ea1c0c9b439b3f502'],
+        productRefs: [{ $oid: '664efb9ea1c0c9b439b3f502' }],
       },
     ],
     meta: {
@@ -260,7 +261,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
     status: 'ok',
     data: [
       {
-        _id: '664efb9ea1c0c9b439b3f501',
+        _id: { $oid: '664efb9ea1c0c9b439b3f501' },
         name: 'Wireless Mic',
         category: 'audio',
         price: 129,
@@ -268,7 +269,7 @@ const mockQueryByCollection: Record<string, QueryResult<Document>> = {
         tags: ['creator', 'portable'],
       },
       {
-        _id: '664efb9ea1c0c9b439b3f502',
+        _id: { $oid: '664efb9ea1c0c9b439b3f502' },
         name: 'Studio Light',
         category: 'lighting',
         price: 89,
@@ -292,13 +293,7 @@ export interface ExplorerPageProps {
   className?: string;
 }
 
-const normalizeDocumentId = (doc: Document | null) => {
-  if (!doc) return null;
-  const raw = doc._id;
-  if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
-  if (raw && typeof raw === 'object' && 'toString' in raw) return String(raw);
-  return null;
-};
+const normalizeDocumentId = (doc: Document | null) => (doc ? extractOid(doc._id) : null);
 
 export function ExplorerPage({ catalogs = mockCatalogs, queryResult, className }: ExplorerPageProps) {
   const explorer = useExplorerState({ catalogs, queryResult, seedQueryByCollection: mockQueryByCollection });
@@ -335,14 +330,18 @@ export function ExplorerPage({ catalogs = mockCatalogs, queryResult, className }
                 activeCollection={explorer.activeCollection}
                 documents={explorer.documents}
                 activeDocumentId={activeDocumentId}
-                documentMap={explorer.documentMap}
                 highlight={explorer.highlight}
+                checkValidReference={explorer.checkValidReference}
                 onSelectCollection={explorer.selectCollection}
                 onSelectDocument={explorer.selectDocument}
                 onRemoveDocument={explorer.removeDocumentById}
                 onOpenJsonPath={explorer.openJsonPath}
                 onUpdateJsonValue={explorer.updateJsonValue}
                 onAddDocument={explorer.addDocument}
+                onAddCollection={(name) => {
+                  if (!explorer.activeDatabase) return;
+                  explorer.addCollection(explorer.activeDatabase, name);
+                }}
                 onOpenManager={() => setManagerOpen(true)}
               />
             </div>
@@ -356,6 +355,7 @@ export function ExplorerPage({ catalogs = mockCatalogs, queryResult, className }
         catalogs={explorer.catalogs}
         activeDatabase={explorer.activeDatabase}
         activeCollection={explorer.activeCollection}
+        activeDocument={explorer.activeDocument}
         documents={explorer.documents}
         onSelectDatabase={explorer.selectDatabase}
         onSelectCollection={explorer.selectCollection}

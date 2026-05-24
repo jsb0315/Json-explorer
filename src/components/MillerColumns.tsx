@@ -15,14 +15,15 @@ interface MillerColumnsProps {
   activeCollection: string | null;
   documents: Document[];
   activeDocumentId: string | null;
-  documentMap: Map<string, Document>;
   highlight: JsonHighlight;
+  checkValidReference: (oid: string) => Document | null;
   onSelectCollection: (collection: string) => void;
   onSelectDocument: (doc: Document) => void;
   onRemoveDocument: (id: string) => void;
-  onOpenJsonPath: (columnDepth: number, segment: JsonPathSegment) => void;
+  onOpenJsonPath: (columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => void;
   onUpdateJsonValue: (rootDocumentId: string, path: JsonPathSegment[], value: unknown) => void;
   onAddDocument?: (doc: Document) => void;
+  onAddCollection?: (name: string) => void;
   onOpenManager: () => void;
 }
 
@@ -32,14 +33,15 @@ export function MillerColumns({
   activeCollection,
   documents,
   activeDocumentId,
-  documentMap,
   highlight,
+  checkValidReference,
   onSelectCollection,
   onSelectDocument,
   onRemoveDocument,
   onOpenJsonPath,
   onUpdateJsonValue,
   onAddDocument,
+  onAddCollection,
   onOpenManager,
 }: MillerColumnsProps) {
   const visibleColumns = columns.slice(-3);
@@ -56,7 +58,7 @@ export function MillerColumns({
                 activeCollection={activeCollection}
                 onSelectCollection={onSelectCollection}
                 onOpenManager={onOpenManager}
-                onAddDocument={onAddDocument}
+                onAddCollection={onAddCollection}
               />
             </div>
           );
@@ -82,10 +84,12 @@ export function MillerColumns({
               value={column.value}
               path={column.path}
               rootDocumentId={column.rootDocumentId}
-              documentMap={documentMap}
               columnDepth={column.depth}
               highlight={highlight}
               allowPrimitiveClick={allowPrimitiveClick}
+              isReferenceColumn={column.isReferenceColumn}
+              activeSegment={column.activeSegment ?? null}
+              checkValidReference={checkValidReference}
               onOpenManager={onOpenManager}
               onOpenPath={onOpenJsonPath}
               onUpdateValue={onUpdateJsonValue}

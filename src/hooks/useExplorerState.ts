@@ -11,6 +11,7 @@ import type {
 import type { ExplorerColumn, JsonHighlight, JsonPathSegment } from '../types/explorer-ui';
 import { pathSegmentLabel, pathToKey, ROOT_HIGHLIGHT } from '../utils/jsonPath';
 import { createObjectId } from '../utils/objectId';
+import { extractOid, wrapOid } from '../utils/oid';
 
 type ExplorerPanel = 0 | 1 | 2;
 
@@ -62,22 +63,19 @@ export interface ExplorerState {
   setQueryResult: (next: QueryResult<Document>) => void;
   addDocument: (doc: Document) => void;
   importJsonText: (text: string) => void;
+  checkValidReference: (oid: string) => Document | null;
 }
 
 const DEFAULT_JSON_INPUT = `{
   "title": "new document"
 }`;
 
-const normalizeDocumentId = (doc: Document) => {
-  const raw = doc._id;
-  if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
-  if (raw && typeof raw === 'object' && 'toString' in raw) return String(raw);
-  return '';
-};
+const normalizeDocumentId = (doc: Document) => extractOid(doc._id) ?? '';
 
 const ensureDocumentId = (doc: Document) => {
-  if ('_id' in doc && doc._id) return doc;
-  return { ...doc, _id: createObjectId() };
+  const current = '_id' in doc ? doc._id : undefined;
+  if (current && extractOid(current)) return doc;
+  return { ...doc, _id: wrapOid(createObjectId()) };
 };
 
 const buildOkResult = (collection: string, data: Document[], total?: number): QueryResult<Document> => ({
@@ -184,6 +182,20 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
     return [];
   }, [queryResult]);
 
+  const referenceIndex = useMemo(() => {
+    const map = new Map<string, Document>();
+    const collect = (result: QueryResult<Document> | null) => {
+      if (!result || (result.status !== 'ok' && result.status !== 'partial')) return;
+      result.data.forEach((doc) => {
+        const id = normalizeDocumentId(doc);
+        if (id) map.set(id, doc);
+      });
+    };
+    Object.values(collectionSnapshots).forEach(collect);
+    collect(queryResult);
+    return map;
+  }, [collectionSnapshots, queryResult]);
+
   const documentMap = useMemo(() => {
     const map = new Map<string, Document>();
     documents.forEach((doc) => {
@@ -263,7 +275,7 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
 
   const openJsonPath = useCallback((columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => {
     setJsonPath((prev) => [...prev.slice(0, columnDepth), primitiveValue ? prev[columnDepth] : segment]);
-  }, []);
+  }, [jsonPath]);
 
   const setJsonPathDepth = useCallback((depth: number) => {
     setJsonPath((prev) => prev.slice(0, Math.max(0, depth)));
@@ -455,6 +467,8 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
     await options.onInsertDocuments?.(activeCollection, nextDocuments);
   }, [activeCollection, jsonInputs, options]);
 
+  const checkValidReference = useCallback((oid: string) => referenceIndex.get(oid) ?? null, [referenceIndex]);
+
   const addDocument = useCallback((doc: Document) => {
     const nextDoc = ensureDocumentId(doc);
     setQueryResult((prev) => {
@@ -599,6 +613,8 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
         path: [],
         rootDocumentId: activeDocumentId,
         depth: 0,
+        isReferenceColumn: false,
+        activeSegment: jsonPath[0] ?? null,
       },
     ];
 
@@ -614,7 +630,7 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
       depth += 1;
       if (segment.type === 'reference') {
         currentRootId = segment.id;
-        currentValue = documentMap.get(segment.id) ?? null;
+        currentValue = referenceIndex.get(segment.id) ?? null;
         currentPath = [];
         jsonColumns.push({
           id: `json-ref-${segment.id}-${depth}`,
@@ -624,6 +640,8 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
           path: currentPath,
           rootDocumentId: currentRootId,
           depth,
+          isReferenceColumn: true,
+          activeSegment: jsonPath[depth] ?? null,
         });
         return;
       }
@@ -639,6 +657,8 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
         path: currentPath,
         rootDocumentId: currentRootId,
         depth,
+        isReferenceColumn: false,
+        activeSegment: jsonPath[depth] ?? null,
       });
     });
 
@@ -684,5 +704,6 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
     setQueryResult,
     addDocument,
     importJsonText,
+    checkValidReference,
   };
 }

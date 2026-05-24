@@ -14,6 +14,8 @@ export type ExplorerColumn =
       path: JsonPathSegment[];
       rootDocumentId: string | null;
       depth: number;
+      isReferenceColumn?: boolean;
+      activeSegment?: JsonPathSegment | null;
     };
 
 export type JsonHighlight = {

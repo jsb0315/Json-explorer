@@ -5,10 +5,17 @@ import type { Document } from '../types/explorer';
 import type { JsonHighlight, JsonPathSegment } from '../types/explorer-ui';
 import { pathToKey, ROOT_HIGHLIGHT } from '../utils/jsonPath';
 import { cn } from '../utils/cn';
+import { isOidObject } from '../utils/oid';
 
 const styles = {
   card: 'flex h-full min-h-0 flex-col rounded-[16px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.08)] transition',
+  cardRef: 'border-emerald-200/70 bg-emerald-50/40',
   header: 'flex items-center justify-between gap-2 text-sm font-semibold text-slate-900 p-4',
+  headerRef: 'text-emerald-800',
+  headerLeft: 'flex items-center gap-2',
+  headerId: 'text-xs text-slate-400',
+  icon: 'h-4 w-4 text-emerald-500',
+  iconRef: 'text-emerald-600',
   empty: 'flex flex-1 items-center justify-center rounded-[12px] border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500',
   list: 'flex flex-1 flex-col space-y-2 overflow-y-auto p-4 pt-1',
   row: 'flex w-full items-center justify-between rounded-[12px] border px-3 py-2 text-left text-sm transition',
@@ -16,11 +23,19 @@ const styles = {
   rowInactive: 'border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-200/60 hover:text-slate-900',
   rowStatic: 'border-slate-200 bg-white',
   itemHover: 'hover:bg-emerald-50/60 hover:border-emerald-200/60',
-  meta: 'text-[11px] text-slate-400',
-  input: 'w-full rounded-[8px] border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-emerald-300/70 focus:outline-none',
   badge: 'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
   highlight: 'ring-2 ring-emerald-200/80',
   skeleton: 'flex w-full items-center justify-between rounded-[12px] border border-dashed border-emerald-200/70 bg-emerald-50/30 px-3 py-3 text-left text-xs text-emerald-700 transition',
+  rowLeft: 'flex items-center gap-2',
+  rowLabel: 'font-semibold text-slate-800',
+  rowRight: 'flex items-center gap-2 text-xs text-slate-500',
+  rowMeta: 'text-[11px] text-slate-400',
+  rowPrevious: 'border-emerald-400/60 bg-emerald-50 text-slate-900 shadow-[0_0_0_3px_rgba(34,197,94,0.14)]',
+  inputWrap: 'w-[52%]',
+  inlineInput: 'w-full rounded-[8px] border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-emerald-300/70 focus:outline-none',
+  skeletonBadge: 'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
+  iconSmall: 'h-4 w-4',
+  flexOne: 'flex-1',
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -44,7 +59,8 @@ const parsePrimitive = (raw: string) => {
   return raw;
 };
 
-const resolveTypeStyle = (value: unknown) => {
+const resolveTypeStyle = (value: unknown, isObjectId = false) => {
+  if (isObjectId) return { label: 'objectId', tone: 'text-slate-600', badge: 'OID' };
   if (value === null) return { label: 'null', tone: 'text-slate-500', badge: 'null' };
   if (Array.isArray(value)) return { label: 'array', tone: 'text-amber-600', badge: '[]' };
   if (isPlainObject(value)) return { label: 'object', tone: 'text-indigo-600', badge: '{}' };
@@ -54,16 +70,12 @@ const resolveTypeStyle = (value: unknown) => {
   return { label: 'value', tone: 'text-slate-500', badge: 'val' };
 };
 
-const getDbRefId = (value: unknown) => {
-  if (!isPlainObject(value)) return null;
-  const hasRef = typeof value.$ref === 'string';
-  const id = value.$id ?? value.$oid;
-  return hasRef && typeof id === 'string' ? id : null;
-};
 
 interface JsonValueRowProps {
   label: string;
   value: unknown;
+  isObjectId?: boolean;
+  isPreviousPath?: boolean;
   path: JsonPathSegment[];
   segment: JsonPathSegment;
   rootDocumentId: string | null;
@@ -72,13 +84,15 @@ interface JsonValueRowProps {
   isHighlighted: boolean;
   columnDepth: number;
   allowPrimitiveClick: boolean;
-  onOpenPath: (columnDepth: number, segment: JsonPathSegment) => void;
+  onOpenPath: (columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => void;
   onUpdateValue: (rootId: string, path: JsonPathSegment[], value: unknown) => void;
 }
 
 function JsonValueRow({
   label,
   value,
+  isObjectId = false,
+  isPreviousPath = false,
   path,
   segment,
   rootDocumentId,
@@ -91,7 +105,7 @@ function JsonValueRow({
   onUpdateValue,
 }: JsonValueRowProps) {
   const [localValue, setLocalValue] = useState(formatValue(value));
-  const typeStyle = resolveTypeStyle(value);
+  const typeStyle = resolveTypeStyle(value, isObjectId);
 
   useEffect(() => {
     setLocalValue(formatValue(value));
@@ -102,20 +116,25 @@ function JsonValueRow({
       <button
         type="button"
         onClick={() => onOpenPath(columnDepth, segment)}
-        className={cn(styles.row, styles.rowInactive, styles.itemHover, isHighlighted && styles.rowActive)}
+        className={cn(
+          styles.row,
+          styles.itemHover,
+          isHighlighted && styles.rowActive,
+          isPreviousPath ? styles.rowPrevious : styles.rowInactive,
+        )}
       >
         <div>
-          <div className="flex items-center gap-2">
+          <div className={styles.rowLeft}>
             <span className={cn(styles.badge, typeStyle.tone)}>{typeStyle.badge}</span>
-            <span className="font-semibold text-slate-800">{label}</span>
+            <span className={styles.rowLabel}>{label}</span>
           </div>
-          <div className={cn(styles.meta, typeStyle.tone)}>
+          <div className={cn(styles.rowMeta, typeStyle.tone)}>
             {isReference ? 'reference' : Array.isArray(value) ? `array (${value.length})` : 'object'}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-500">
+        <div className={styles.rowRight}>
           {isReference ? 'ref' : Array.isArray(value) ? 'expand' : 'open'}
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className={styles.iconSmall} />
         </div>
       </button>
     );
@@ -125,17 +144,23 @@ function JsonValueRow({
     return (
       <button
         type="button"
-        onClick={() => onOpenPath(columnDepth, segment)}
-        className={cn(styles.row, styles.rowStatic, styles.itemHover, isHighlighted && styles.rowActive)}
+        onClick={() => onOpenPath(columnDepth, segment, true)}
+        className={cn(
+          styles.row,
+          styles.rowStatic,
+          styles.itemHover,
+          isHighlighted && styles.rowActive,
+          isPreviousPath && styles.rowPrevious
+        )}
       >
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+        <div className={styles.flexOne}>
+          <div className={styles.rowLeft}>
             <span className={cn(styles.badge, typeStyle.tone)}>{typeStyle.badge}</span>
-            <span className="font-semibold text-slate-800">{label}</span>
+            <span className={styles.rowLabel}>{label}</span>
           </div>
-          <div className={cn(styles.meta, typeStyle.tone)}>{value === null ? 'null' : typeof value}</div>
+          <div className={cn(styles.rowMeta, typeStyle.tone)}>{value === null ? 'null' : typeof value}</div>
         </div>
-        <div className="w-[52%]">
+        <div className={styles.inputWrap}>
           <input
             value={localValue}
             onClick={(event) => event.stopPropagation()}
@@ -149,7 +174,7 @@ function JsonValueRow({
                 event.currentTarget.blur();
               }
             }}
-            className={styles.input}
+            className={styles.inlineInput}
           />
         </div>
       </button>
@@ -157,15 +182,22 @@ function JsonValueRow({
   }
 
   return (
-    <div className={cn(styles.row, styles.rowStatic, isHighlighted && styles.rowActive)}>
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        styles.row,
+        styles.rowStatic,
+        isHighlighted && styles.rowActive,
+        isPreviousPath && styles.rowPrevious,
+      )}
+    >
+      <div className={styles.flexOne}>
+        <div className={styles.rowLeft}>
           <span className={cn(styles.badge, typeStyle.tone)}>{typeStyle.badge}</span>
-          <span className="font-semibold text-slate-800">{label}</span>
+          <span className={styles.rowLabel}>{label}</span>
         </div>
-        <div className={cn(styles.meta, typeStyle.tone)}>{value === null ? 'null' : typeof value}</div>
+        <div className={cn(styles.rowMeta, typeStyle.tone)}>{value === null ? 'null' : isObjectId ? 'objectId' : typeof value}</div>
       </div>
-      <div className="w-[52%]">
+      <div className={styles.inputWrap}>
         <input
           value={localValue}
           onChange={(event) => setLocalValue(event.target.value)}
@@ -178,7 +210,7 @@ function JsonValueRow({
               event.currentTarget.blur();
             }
           }}
-          className={styles.input}
+          className={styles.inlineInput}
         />
       </div>
     </div>
@@ -190,12 +222,14 @@ interface JsonLevelColumnProps {
   value: unknown;
   path: JsonPathSegment[];
   rootDocumentId: string | null;
-  documentMap: Map<string, Document>;
   columnDepth: number;
   highlight: JsonHighlight;
   allowPrimitiveClick: boolean;
+  isReferenceColumn?: boolean;
+  activeSegment?: JsonPathSegment | null;
+  checkValidReference: (oid: string) => Document | null;
   onOpenManager: () => void;
-  onOpenPath: (columnDepth: number, segment: JsonPathSegment) => void;
+  onOpenPath: (columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => void;
   onUpdateValue: (rootId: string, path: JsonPathSegment[], value: unknown) => void;
 }
 
@@ -204,41 +238,45 @@ export function JsonLevelColumn({
   value,
   path,
   rootDocumentId,
-  documentMap,
   columnDepth,
   highlight,
   allowPrimitiveClick,
+  isReferenceColumn = false,
+  activeSegment = null,
+  checkValidReference,
   onOpenManager,
   onOpenPath,
   onUpdateValue,
 }: JsonLevelColumnProps) {
   const [expanded, setExpanded] = useState(false);
+  const isArray = Array.isArray(value);
+  const nextArrayIndex = isArray ? value.length : 0;
   const entries = Array.isArray(value)
     ? value.map((entry, index) => ({
-        label: `[${index}]`,
-        segment: { type: 'index', index } as JsonPathSegment,
-        value: entry,
-      }))
+      label: `[${index}]`,
+      segment: { type: 'index', index } as JsonPathSegment,
+      value: entry,
+    }))
     : isPlainObject(value)
-    ? Object.entries(value).map(([key, entry]) => ({
+      ? Object.entries(value).map(([key, entry]) => ({
         label: key,
         segment: { type: 'key', key } as JsonPathSegment,
         value: entry,
       }))
-    : [];
+      : [];
 
   const columnHighlighted =
     highlight.rootId === rootDocumentId && highlight.pathKey === ROOT_HIGHLIGHT;
 
   return (
-    <section className={cn(styles.card, columnHighlighted && styles.highlight)}>
-      <div className={styles.header}>
-        <div className="flex items-center gap-2">
-          <FileJson className="h-4 w-4 text-emerald-500" />
+    <section className={cn(styles.card, isReferenceColumn && styles.cardRef, columnHighlighted && styles.highlight)}>
+      <div className={cn(styles.header, isReferenceColumn && styles.headerRef)}>
+        <div className={styles.headerLeft}>
+          <FileJson className={cn(styles.icon, isReferenceColumn && styles.iconRef)} />
           {title}
         </div>
         {rootDocumentId ? (
-          <span className="text-xs text-slate-400">{rootDocumentId.slice(-6)}</span>
+          <span className={styles.headerId}>{rootDocumentId.slice(-6)}</span>
         ) : null}
       </div>
       <div className={styles.list}>
@@ -250,26 +288,28 @@ export function JsonLevelColumn({
           </div>
         ) : (
           entries.map((entry) => {
-            const hasReferenceKey = entry.label !== '_id';
-            const dbRefId = hasReferenceKey ? getDbRefId(entry.value) : null;
-            const stringRefId =
-              hasReferenceKey && typeof entry.value === 'string' && documentMap.has(entry.value)
-                ? entry.value
-                : null;
-            const resolvedReference = dbRefId ?? stringRefId;
-            const isRef = Boolean(resolvedReference);
-            const isExpandableValue = isExpandable(entry.value);
+            const oid = isOidObject(entry.value) ? entry.value.$oid : null;
+            const isObjectIdKey = entry.label === '_id' && Boolean(oid);
+            const resolved = !isObjectIdKey && oid ? checkValidReference(oid) : null;
+            const isRef = Boolean(resolved);
             const segment = isRef
-              ? ({ type: 'reference', id: resolvedReference } as JsonPathSegment)
+              ? ({ type: 'reference', id: oid as string } as JsonPathSegment)
               : entry.segment;
+            const rowValue = isObjectIdKey ? oid : oid && !resolved ? oid : entry.value;
+            const isExpandableValue = isObjectIdKey ? false : isExpandable(rowValue);
             const keyPath = pathToKey([...path, segment]);
+            const isPreviousPath =
+              activeSegment && pathToKey([segment]) === pathToKey([activeSegment]);
             const isHighlighted =
               highlight.rootId === rootDocumentId && highlight.pathKey === keyPath;
+
             return (
               <JsonValueRow
                 key={`${entry.label}-${keyPath}`}
                 label={entry.label}
-                value={entry.value}
+                value={rowValue}
+                isObjectId={isObjectIdKey}
+                isPreviousPath={Boolean(isPreviousPath)}
                 path={path}
                 segment={segment}
                 rootDocumentId={rootDocumentId}
@@ -292,8 +332,8 @@ export function JsonLevelColumn({
                 parentPath={path}
                 rootDocumentId={rootDocumentId}
                 onCancel={() => setExpanded(false)}
-                onSubmitField={(rootId, parent, key, value) => {
-                  const segment = { type: 'key', key } as JsonPathSegment;
+
+                onSubmitField={(rootId, parent, segment, value) => {
                   onUpdateValue(rootId, [...parent, segment], value);
                 }}
               />

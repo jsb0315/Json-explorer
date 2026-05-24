@@ -3,6 +3,7 @@ import { useState } from 'react';
 import InlineSegmentEditor from './InlineSegmentEditor';
 import type { Document } from '../types/explorer';
 import { cn } from '../utils/cn';
+import { extractOid } from '../utils/oid';
 
 const styles = {
   card: 'flex h-full min-h-0 flex-col rounded-[16px] border border-slate-200 bg-white overflow-auto shadow-[0_10px_30px_rgba(15,23,42,0.06)]',
@@ -11,16 +12,28 @@ const styles = {
   meta: 'text-xs text-slate-500',
   remove: 'inline-flex items-center gap-1 text-xs text-rose-500 transition hover:text-rose-600',
   itemHover: 'hover:bg-emerald-50/60 hover:border-emerald-200/60',
+  itemActive: 'border-emerald-400/60 bg-emerald-50 text-slate-900 shadow-[0_0_0_3px_rgba(34,197,94,0.14)]',
+  itemInactive: 'border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-200/60 hover:text-slate-900',
   list: 'flex flex-1 flex-col space-y-2 overflow-y-auto p-4 pt-1',
   skeleton: 'flex w-full items-center justify-between rounded-[12px] border border-dashed border-emerald-200/70 bg-emerald-50/30 px-3 py-3 text-left text-xs text-emerald-700 transition',
+  empty: 'rounded-[12px] border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500',
+  rowTop: 'flex items-center justify-between',
+  rowBottom: 'flex items-center justify-between',
+  idBadge: 'text-xs text-slate-500',
+  expandedWrap: 'overflow-hidden transition-all duration-300',
+  expandedOpen: 'max-h-[520px] opacity-100',
+  expandedClosed: 'max-h-0 opacity-0',
+  expandedInner: 'transform transition-all duration-300',
+  expandedInnerOpen: 'translate-y-0 opacity-100',
+  expandedInnerClosed: '-translate-y-2 opacity-0',
+  inlineWrap: 'w-full',
+  icon: 'h-4 w-4',
+  iconSmall: 'h-3 w-3',
+  titleText: 'font-semibold',
+  iconAccent: 'h-4 w-4 text-emerald-500',
 };
 
-const getDocId = (doc: Document) => {
-  const raw = doc._id;
-  if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
-  if (raw && typeof raw === 'object' && 'toString' in raw) return String(raw);
-  return '';
-};
+const getDocId = (doc: Document) => extractOid(doc._id) ?? '';
 
 const getDocLabel = (doc: Document, fallback: string) => {
   const title = doc.title;
@@ -49,14 +62,12 @@ export function DocumentList({
   return (
     <section className={styles.card}>
       <div className={styles.title}>
-        <FileText className="h-4 w-4 text-emerald-500" />
+        <FileText className={styles.iconAccent} />
         Documents
       </div>
       <div className={styles.list}>
         {documents.length === 0 ? (
-          <div className="rounded-[12px] border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
-            Select a collection to load documents.
-          </div>
+          <div className={styles.empty}>Select a collection to load documents.</div>
         ) : (
           documents.map((doc, index) => {
             const id = getDocId(doc);
@@ -69,20 +80,18 @@ export function DocumentList({
                 className={cn(
                   styles.item,
                   styles.itemHover,
-                  isActive
-                    ? 'border-emerald-400/60 bg-emerald-50 text-slate-900 shadow-[0_0_0_3px_rgba(34,197,94,0.14)]'
-                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-200/60 hover:text-slate-900'
+                  isActive ? styles.itemActive : styles.itemInactive
                 )}
               >
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold">{getDocLabel(doc, id || 'Document')}</div>
+                <div className={styles.rowTop}>
+                  <div className={styles.titleText}>{getDocLabel(doc, id || 'Document')}</div>
                   {id ? (
-                    <span className={styles.meta}>{id.slice(0, 6)}...</span>
+                    <span className={styles.idBadge}>{id.slice(0, 6)}...</span>
                   ) : (
                     <span className={styles.meta}>no id</span>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
+                <div className={styles.rowBottom}>
                   <div className={styles.meta}>Fields: {Object.keys(doc).length}</div>
                   {id ? (
                     <span
@@ -100,7 +109,7 @@ export function DocumentList({
                       }}
                       className={styles.remove}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className={styles.iconSmall} />
                       Remove
                     </span>
                   ) : null}
@@ -109,9 +118,9 @@ export function DocumentList({
             );
           })
         )}
-        <div className="w-full">
-          <div className={cn('overflow-hidden transition-all duration-300', expanded ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0')}>
-            <div className={cn('transform transition-all duration-300', expanded ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0')}>
+        <div className={styles.inlineWrap}>
+          <div className={cn(styles.expandedWrap, expanded ? styles.expandedOpen : styles.expandedClosed)}>
+            <div className={cn(styles.expandedInner, expanded ? styles.expandedInnerOpen : styles.expandedInnerClosed)}>
               <InlineSegmentEditor
                 mode="document"
                 onCancel={() => setExpanded(false)}
@@ -125,7 +134,7 @@ export function DocumentList({
         {!expanded ? (
           <button type="button" onClick={() => setExpanded(true)} className={cn(styles.skeleton, styles.itemHover)}>
             <span>Add document or JSON</span>
-            <Plus className="h-4 w-4" />
+            <Plus className={styles.icon} />
           </button>
         ) : null}
       </div>

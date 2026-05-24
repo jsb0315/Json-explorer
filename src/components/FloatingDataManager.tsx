@@ -1,15 +1,8 @@
 import { useMemo, useState } from 'react';
-import {
-  Braces,
-  Database,
-  Edit3,
-  Plus,
-  Send,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { Database, Plus, X } from 'lucide-react';
 import type { DbCatalog, Document } from '../types/explorer';
 import { cn } from '../utils/cn';
+import { extractOid } from '../utils/oid';
 
 const styles = {
   wrapper: 'fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3',
@@ -18,11 +11,20 @@ const styles = {
   section: 'rounded-[12px] border border-slate-200 bg-slate-50 p-3',
   sectionTitle: 'text-xs font-semibold uppercase tracking-[0.2em] text-slate-500',
   input: 'flex-1 rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-400/60 focus:outline-none',
-  chip: 'rounded-full border px-3 py-1 text-xs transition',
+  chip: 'rounded-l-full border px-3 pr-2 py-1 text-xs transition',
   chipActive: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700',
   chipInactive: 'border-slate-200 bg-white text-slate-600 hover:border-emerald-400/40 hover:text-emerald-700',
   action: 'rounded-[10px] border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 transition hover:scale-[1.02]',
   ghost: 'text-xs text-slate-500 hover:text-rose-500',
+  panelHeader: 'mb-4 flex items-center justify-between',
+  panelTitle: 'text-sm font-semibold text-slate-900',
+  panelSubtitle: 'text-xs text-slate-500',
+  liveBadge: 'rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700',
+  scrollArea: 'max-h-[70vh] space-y-4 overflow-y-auto pr-1',
+  scopeRow: 'mt-2 flex items-center gap-2 text-xs text-slate-600',
+  scopePill: 'rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600',
+  exportBtn: 'rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-xs',
+  textarea: 'h-48 w-full resize-y rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-xs font-mono',
 };
 
 interface FloatingDataManagerProps {
@@ -31,6 +33,7 @@ interface FloatingDataManagerProps {
   catalogs: DbCatalog[];
   activeDatabase: string | null;
   activeCollection: string | null;
+  activeDocument: Document | null;
   documents: Document[];
   onSelectDatabase: (database: string) => void;
   onSelectCollection: (collection: string) => void;
@@ -38,15 +41,8 @@ interface FloatingDataManagerProps {
   onRemoveDatabase: (name: string) => void;
   onAddCollection: (database: string, name: string) => void;
   onRemoveCollection: (database: string, name: string) => void;
-  onImportJson: (text: string) => void;
+  onImportJson: (text: string, targetDocumentId?: string | null) => void;
 }
-
-const getDocId = (doc: Document) => {
-  const raw = doc._id;
-  if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
-  if (raw && typeof raw === 'object' && 'toString' in raw) return String(raw);
-  return '';
-};
 
 export function FloatingDataManager({
   isOpen,
@@ -54,6 +50,7 @@ export function FloatingDataManager({
   catalogs,
   activeDatabase,
   activeCollection,
+  activeDocument,
   onSelectDatabase,
   onSelectCollection,
   onAddDatabase,
@@ -72,10 +69,12 @@ export function FloatingDataManager({
     [catalogs, activeDatabase]
   );
 
-  const handleLoadActiveDocument = () => {
-    // keep placeholder compatibility (no-op)
-    return;
-  };
+  const activeDocumentId = activeDocument ? extractOid(activeDocument._id) : null;
+  const scopeLabel = activeDocumentId
+    ? `Document ${activeDocumentId.slice(-6)}`
+    : activeCollection
+      ? `Collection ${activeCollection}`
+      : 'No selection';
 
   return (
     <div className={styles.wrapper}>
@@ -84,22 +83,22 @@ export function FloatingDataManager({
       </button>
       {isOpen ? (
         <div className={styles.panel}>
-          <div className="mb-4 flex items-center justify-between">
+          <div className={styles.panelHeader}>
             <div>
-              <div className="text-sm font-semibold text-slate-900">Floating Data Manager</div>
-              <div className="text-xs text-slate-500">Inject JSON and edit mock documents.</div>
+              <div className={styles.panelTitle}>Floating Data Manager</div>
+              <div className={styles.panelSubtitle}>Inject JSON and edit mock documents.</div>
             </div>
-            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+            <span className={styles.liveBadge}>
               Live
             </span>
           </div>
 
-          <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+          <div className={styles.scrollArea}>
             <div className={styles.section}>
               <div className={styles.sectionTitle}>Database</div>
               <div className="mt-2 flex flex-wrap gap-1">
                 {catalogs.map((catalog) => (
-                  <div key={catalog.database} className="flex">
+                  <div key={catalog.database} className="flex gap-0.5">
                     <button
                       type="button"
                       onClick={() => onSelectDatabase(catalog.database)}
@@ -115,7 +114,7 @@ export function FloatingDataManager({
                     <button
                       type="button"
                       onClick={() => onRemoveDatabase(catalog.database)}
-                      className="rounded-r-full border border-slate-200 bg-white px-2 text-xs text-slate-600 transition hover:border-emerald-400/40 hover:text-emerald-700"
+                      className="rounded-r-full border border-slate-200 bg-white px-2 pl-1.5 text-xs text-slate-600 transition hover:border-emerald-400/40 hover:text-emerald-700"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -152,29 +151,25 @@ export function FloatingDataManager({
               <div className={styles.sectionTitle}>Collections</div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {activeDbEntry?.collections.map((entry) => (
-                  <button
-                    key={entry.collection.name}
-                    type="button"
-                    onClick={() => onSelectCollection(entry.collection.name)}
-                    className={cn(
-                      styles.chip,
-                      activeCollection === entry.collection.name ? styles.chipActive : styles.chipInactive
-                    )}
-                  >
-                    {entry.collection.name}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {activeDbEntry?.collections.map((entry) => (
-                  <button
-                    key={`${entry.collection.name}-remove`}
-                    type="button"
-                    onClick={() => onRemoveCollection(activeDatabase ?? '', entry.collection.name)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 transition hover:border-emerald-400/40 hover:text-emerald-700"
-                  >
-                    Remove {entry.collection.name}
-                  </button>
+                  <div key={entry.collection.name} className="flex gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => onSelectCollection(entry.collection.name)}
+                      className={cn(
+                        styles.chip,
+                        activeCollection === entry.collection.name ? styles.chipActive : styles.chipInactive
+                      )}
+                    >
+                      {entry.collection.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveCollection(activeDatabase ?? '', entry.collection.name)}
+                      className="rounded-r-full border border-slate-200 bg-white px-2 pl-1.5 text-xs text-slate-600 transition hover:border-emerald-400/40 hover:text-emerald-700"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 ))}
               </div>
               <div className="mt-3 flex gap-2">
@@ -209,13 +204,27 @@ export function FloatingDataManager({
                 <div className={styles.sectionTitle}>Import / Export</div>
                 <div className="text-xs text-slate-500">Paste large JSON here</div>
               </div>
+              <div className={styles.scopeRow}>
+                <span>Scope</span>
+                <span className={styles.scopePill}>{scopeLabel}</span>
+              </div>
               <div className="mt-2">
-                <textarea value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Paste JSON array or object here" className="h-48 w-full resize-y rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-xs font-mono" />
+                <textarea value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Paste JSON array or object here" className={styles.textarea} />
                 <div className="mt-2 flex gap-2">
-                  <button type="button" onClick={() => { onImportJson(importText); }} className={styles.action}>
+                  <button type="button" onClick={() => { onImportJson(importText, activeDocumentId); }} className={styles.action}>
                     Import JSON
                   </button>
-                  <button type="button" onClick={() => setImportText(JSON.stringify(documents ?? [], null, 2))} className="rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeDocument) {
+                        setImportText(JSON.stringify(activeDocument, null, 2));
+                        return;
+                      }
+                      setImportText(JSON.stringify(documents ?? [], null, 2));
+                    }}
+                    className={styles.exportBtn}
+                  >
                     Export current
                   </button>
                 </div>
