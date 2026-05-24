@@ -46,7 +46,7 @@ export interface ExplorerState {
   selectCollection: (collection: string) => void;
   selectDocument: (document: Document) => void;
   setActivePanel: (panel: ExplorerPanel) => void;
-  openJsonPath: (columnDepth: number, segment: JsonPathSegment) => void;
+  openJsonPath: (columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => void;
   setJsonPathDepth: (depth: number) => void;
   updateJsonValue: (rootDocumentId: string, path: JsonPathSegment[], value: unknown) => void;
   addDatabase: (name: string) => void;
@@ -259,8 +259,8 @@ export function useExplorerState(options: ExplorerStateOptions = {}): ExplorerSt
     setJsonPath([]);
   }, []);
 
-  const openJsonPath = useCallback((columnDepth: number, segment: JsonPathSegment) => {
-    setJsonPath((prev) => [...prev.slice(0, columnDepth), segment]);
+  const openJsonPath = useCallback((columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => {
+    setJsonPath((prev) => [...prev.slice(0, columnDepth), primitiveValue ? prev[columnDepth] : segment]);
   }, []);
 
   const setJsonPathDepth = useCallback((depth: number) => {

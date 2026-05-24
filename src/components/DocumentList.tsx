@@ -3,13 +3,13 @@ import type { Document } from '../types/explorer';
 import { cn } from '../utils/cn';
 
 const styles = {
-  card: 'flex h-full min-h-0 flex-col gap-3 rounded-[16px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]',
-  title: 'flex items-center gap-2 text-sm font-semibold text-slate-900',
+  card: 'flex h-full min-h-0 flex-col rounded-[16px] border border-slate-200 bg-white overflow-auto shadow-[0_10px_30px_rgba(15,23,42,0.06)]',
+  title: 'flex items-center gap-2 text-sm font-semibold text-slate-900 p-4',
   item: 'flex w-full flex-col gap-1 rounded-[12px] border px-3 py-2 text-left text-sm transition',
   meta: 'text-xs text-slate-500',
   remove: 'inline-flex items-center gap-1 text-xs text-rose-500 transition hover:text-rose-600',
   itemHover: 'hover:bg-emerald-50/60 hover:border-emerald-200/60',
-  list: 'flex flex-1 flex-col space-y-2 overflow-y-auto pr-1',
+  list: 'flex flex-1 flex-col space-y-2 overflow-y-auto p-4 pt-1',
   skeleton: 'flex w-full items-center justify-between rounded-[12px] border border-dashed border-emerald-200/70 bg-emerald-50/30 px-3 py-3 text-left text-xs text-emerald-700 transition',
 };
 

@@ -6,10 +6,10 @@ import { pathToKey, ROOT_HIGHLIGHT } from '../utils/jsonPath';
 import { cn } from '../utils/cn';
 
 const styles = {
-  card: 'flex h-full min-h-0 flex-col gap-3 rounded-[16px] border border-slate-200 bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.08)] transition',
-  header: 'flex items-center justify-between gap-2 text-sm font-semibold text-slate-900',
+  card: 'flex h-full min-h-0 flex-col rounded-[8px] border border-slate-200 bg-white overflow-auto shadow-[0_12px_35px_rgba(15,23,42,0.08)] transition',
+  header: 'flex items-center justify-between gap-2 text-sm font-semibold text-slate-900 p-4',
   empty: 'flex flex-1 items-center justify-center rounded-[12px] border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500',
-  list: 'flex flex-1 flex-col space-y-2 overflow-y-auto pr-1',
+  list: 'flex flex-1 flex-col space-y-2 overflow-y-auto p-4 pt-1',
   row: 'flex w-full items-center justify-between rounded-[12px] border px-3 py-2 text-left text-sm transition',
   rowActive: 'border-emerald-400/60 bg-emerald-50 shadow-[0_0_0_3px_rgba(34,197,94,0.14)]',
   rowInactive: 'border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-200/60 hover:text-slate-900',
@@ -71,7 +71,7 @@ interface JsonValueRowProps {
   isHighlighted: boolean;
   columnDepth: number;
   allowPrimitiveClick: boolean;
-  onOpenPath: (columnDepth: number, segment: JsonPathSegment) => void;
+  onOpenPath: (columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => void;
   onUpdateValue: (rootId: string, path: JsonPathSegment[], value: unknown) => void;
 }
 
@@ -95,6 +95,8 @@ function JsonValueRow({
   useEffect(() => {
     setLocalValue(formatValue(value));
   }, [value]);
+
+  const navigableSegment = allowPrimitiveClick ? path[path.length - 1] ?? segment : segment;
 
   if (isExpandable || isReference) {
     return (
@@ -124,7 +126,7 @@ function JsonValueRow({
     return (
       <button
         type="button"
-        onClick={() => onOpenPath(columnDepth, segment)}
+        onClick={() => onOpenPath(columnDepth, navigableSegment, true)}
         className={cn(styles.row, styles.rowStatic, styles.itemHover, isHighlighted && styles.rowActive)}
       >
         <div className="flex-1">
@@ -194,7 +196,7 @@ interface JsonLevelColumnProps {
   highlight: JsonHighlight;
   allowPrimitiveClick: boolean;
   onOpenManager: () => void;
-  onOpenPath: (columnDepth: number, segment: JsonPathSegment) => void;
+  onOpenPath: (columnDepth: number, segment: JsonPathSegment, primitiveValue?: boolean) => void;
   onUpdateValue: (rootId: string, path: JsonPathSegment[], value: unknown) => void;
 }
 
