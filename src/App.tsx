@@ -1,6 +1,11 @@
+import { JsonExplorer } from "./components/JsonExplorer";
 
-import { Page } from './pages/page';
+// ─────────────────────────────────────────────
+// Main App
+// ─────────────────────────────────────────────
+export default function App() {
 
-export function App() {
-  return <Page />;
+  return (
+    <JsonExplorer />
+  );
 }
