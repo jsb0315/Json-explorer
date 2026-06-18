@@ -1,12 +1,17 @@
 // path: src/services/mockStorage.ts
-import type { Document, JsonObject, JsonValue, MockCollectionRecord, MockDatabaseRecord, MockSnapshot } from '../types/explorer';
+import {
+  isPlainObject,
+  type Document,
+  type JsonObject,
+  type JsonValue,
+  type MockCollectionRecord,
+  type MockDatabaseRecord,
+  type MockSnapshot,
+} from '../types/explorer';
 import { createSeedSnapshot } from '../data/sampleData';
 
 const STORAGE_KEY = 'mongolive_snapshot';
 const SNAPSHOT_VERSION = 1;
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isJsonValue = (value: unknown): value is JsonValue => {
   if (value === null) {
@@ -204,18 +209,6 @@ export const setSnapshot = (snapshot: MockSnapshot): void => {
   const nextSnapshot = validateSnapshot(snapshot);
   currentSnapshot = cloneSnapshot(nextSnapshot);
   writeSnapshot(currentSnapshot);
-};
-
-export const importSnapshot = (raw: string): MockSnapshot => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error('Invalid snapshot');
-  }
-  const nextSnapshot = validateSnapshot(parsed);
-  setSnapshot(nextSnapshot);
-  return getSnapshot();
 };
 
 export const exportSnapshot = (): string => JSON.stringify(currentSnapshot);

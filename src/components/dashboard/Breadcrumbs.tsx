@@ -46,7 +46,7 @@ export function Breadcrumbs({ breadcrumbs, onNavigate }: BreadcrumbsProps) {
     
     // Use setTimeout to ensure DOM has been updated
     const timeoutId = setTimeout(() => {
-      const { scrollLeft, scrollWidth, clientWidth } = trackRef.current!;
+      const { scrollWidth, clientWidth } = trackRef.current!;
       if (scrollWidth > clientWidth) {
         trackRef.current!.scrollLeft = scrollWidth - clientWidth;
       }

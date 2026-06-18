@@ -10,7 +10,9 @@ import {
   checkReference,
   subscribeToChanges,
 } from '../services/mockAPI';
-import { getSnapshot, getUniqueOids, setUniqueOids as persistUniqueOids } from '../services/mockStorage';
+import { getSnapshot } from '../services/mockStorage';
+import { useToast, type ToastMessage } from './useToast';
+import { useUniqueOidRegistry } from './useUniqueOidRegistry';
 import type {
   ActivePath,
   CollectionSummary,
@@ -26,24 +28,14 @@ import type {
   ReferenceActivePath,
 } from '../types/explorer';
 
+export type { ToastMessage };
+
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 
 const CHAIN_COLORS = ['#f59e0b', '#8b5cf6', '#3b82f6', '#ec4899', '#14b8a6'] as const;
 
 let pathIdCounter = 0;
 export const nextPathId = () => ++pathIdCounter;
-
-let toastIdCounter = 0;
-const nextId = () => String(++toastIdCounter);
-
-// ── Toast 타입 ────────────────────────────────────────────────────────────────
-
-export interface ToastMessage {
-  id: string;
-  message: string;
-  type: 'success' | 'error';
-  undoable?: boolean;
-}
 
 // ── UseExplorerStateResult 타입 (Header 등 외부 컴포넌트에서 Pick 가능) ────────
 
@@ -99,50 +91,23 @@ export function useExplorerState(): UseExplorerStateResult {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [changedPaths, setChangedPaths] = useState<string[]>([]);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [uniqueOids, setUniqueOids] = useState<Set<string>>(() => new Set(getUniqueOids()));
+
+  const { toast, showToast, dismissToast } = useToast();
+  const { uniqueOids, registerUniqueOid, unregisterUniqueOid } = useUniqueOidRegistry();
 
   const undoSnapshotRef = useRef<MockSnapshot | null>(null);
   const activeDatabaseRef = useRef<string | null>(null);
   const activeCollectionRef = useRef<string | null>(null);
   const activeDocumentOidRef = useRef<string | null>(null);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── 내부 헬퍼 ──────────────────────────────────────────────────────────────
-
-  const showToast = useCallback((message: string, type: ToastMessage['type'], undoable = false) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    const id = nextId();
-    setToast({ id, message, type, undoable });
-    toastTimerRef.current = setTimeout(() => setToast(null), type === 'error' ? 3000 : 5000);
-  }, []);
-
-  const dismissToast = useCallback(() => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast(null);
-  }, []);
-
-  // 이 앱이 직접 생성한 '고유 oid' 집합 — 다른 문서를 참조하지 않는 단순 식별자 값.
-  // 여기 없는 단일 {$oid} 필드는 모두 DBRef(참조)로 분류된다.
-  const registerUniqueOid = useCallback((oid: string) => {
-    setUniqueOids((prev) => {
-      if (prev.has(oid)) return prev;
-      const next = new Set(prev);
-      next.add(oid);
-      persistUniqueOids([...next]);
-      return next;
-    });
-  }, []);
-
-  const unregisterUniqueOid = useCallback((oid: string) => {
-    setUniqueOids((prev) => {
-      if (!prev.has(oid)) return prev;
-      const next = new Set(prev);
-      next.delete(oid);
-      persistUniqueOids([...next]);
-      return next;
-    });
-  }, []);
+  // 위험 영역(의도적으로 더 쪼개지 않음): 아래의 activePaths state + 3개의 ref
+  // (activeDatabaseRef/activeCollectionRef/activeDocumentOidRef)는 탐색 액션
+  // 거의 전부가 2~4개씩 같이 읽고 쓰는 이 훅의 진짜 엔진이다. mutate/undo도
+  // 이 ref들을 보고 "뭘 다시 불러올지" 결정하므로 탐색 로직과 강하게 결합돼
+  // 있다. 테스트 코드가 없는 상태에서 이 부분을 훅으로 더 쪼개면, setState
+  // 호출 순서나 ref 갱신 시점이 한 군데라도 어긋나면 비동기 경쟁 상태(race
+  // condition) 버그가 생기기 쉽고 타입체커로는 잡히지 않는다. 그래서 toast/
+  // uniqueOids처럼 완전히 독립적인 부분만 훅으로 뽑고, 이 블록은 그대로 뒀다.
 
   // ── 파생값 ──────────────────────────────────────────────────────────────────
 

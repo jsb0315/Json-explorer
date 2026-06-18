@@ -1,27 +1,14 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Layers, Plus } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { ActivePath, CollectionSummary, Document, JsonValue, MockMutationRequest } from '../../../types/explorer';
 import { ColumnItem, ColumnSkeletonList } from './ColumnItem';
+import { AddItemButton } from './AddItemButton';
 import { InlineSegmentEditor } from '../../editors/InlineSegmentEditor';
 import { DeleteConfirmModal } from '../../common/DeleteConfirmModal';
 import { getSnapshot } from '../../../services/mockStorage';
-
-// ── 스타일 ────────────────────────────────────────────────────────────────────
-
-const styles = {
-  container: 'flex flex-col min-h-0 flex-1',
-  header: 'shrink-0 flex items-center gap-2 px-4 h-11 border-b border-slate-100',
-  headerIcon: 'text-slate-400',
-  headerTitle: 'text-[13px] font-semibold text-slate-700 truncate flex-1',
-  headerCount: 'text-xs text-slate-400 font-mono',
-  list: 'flex-1 overflow-y-auto min-h-0 p-2 flex flex-col gap-0.5',
-  addCard: 'group flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/50 transition-colors disabled:opacity-40 disabled:cursor-default',
-  addCardIcon: 'shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border border-dashed border-slate-300 text-slate-400 group-hover:border-emerald-300 group-hover:text-emerald-500 transition-colors',
-  addCardText: 'text-sm font-medium text-slate-400 group-hover:text-emerald-600 transition-colors',
-  empty: 'flex flex-col items-center justify-center flex-1 gap-2 text-slate-400 text-sm pb-20',
-} as const;
+import { columnListStyles as styles } from './columnListStyles';
+import { isPathChanged } from '../../../utils/changedPaths';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -88,7 +75,7 @@ export function CollectionsColumn({
         ) : (
           collections.map((col) => {
             const isEditing = editingId === `collection:${col.name}`;
-            const isHighlighted = changedPaths.some((p) => p.includes(col.name));
+            const isHighlighted = isPathChanged(changedPaths, col.name);
 
             if (isEditing) {
               return (
@@ -128,7 +115,6 @@ export function CollectionsColumn({
             return (
               <ColumnItem
                 key={col.name}
-                id={col.name}
                 label={col.label}
                 meta={`${col.documentCount}개 문서 · ${col.sizeMb}MB`}
                 isActive={activeCollectionName === col.name}
@@ -169,21 +155,13 @@ export function CollectionsColumn({
             onCancel={() => onSetEditingId(null)}
           />
         ) : (
-          <motion.button
-            type="button"
-            layout
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            className={styles.addCard}
+          <AddItemButton
+            label="컬렉션 추가"
             onClick={() => onSetEditingId('collection:__new__')}
-          >
-            <span className={styles.addCardIcon}>
-              <Plus size={16} />
-            </span>
-            <span className={styles.addCardText}>컬렉션 추가</span>
-          </motion.button>
+            buttonClassName={styles.addCard}
+            iconClassName={styles.addCardIcon}
+            textClassName={styles.addCardText}
+          />
         )}
         {!collections.length && (
           <div className={styles.empty}>

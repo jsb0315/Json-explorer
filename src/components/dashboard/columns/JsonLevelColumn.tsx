@@ -1,174 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { nextPathId } from '../../../hooks/useExplorerState';
+import { Link, Hash, ToggleLeft, KeyRound } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import {
-  ChevronRight, Copy, Check, Braces, List, Link, Plus, Pencil, Hash, ToggleLeft, KeyRound
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import type {
-  ActivePath,
-  Document,
-  JsonValue,
-  MockMutationRequest,
-  NormalActivePath,
-  ReferenceActivePath,
+  isBsonObjectId as isBsonOid,
+  type ActivePath,
+  type Document,
+  type JsonValue,
+  type MockMutationRequest,
+  type NormalActivePath,
+  type ReferenceActivePath,
 } from '../../../types/explorer';
 import { getFullDocumentById, getReferenceInfo, type ReferenceInfo } from '../../../services/mockAPI';
 import { InlineSegmentEditor } from '../../editors/InlineSegmentEditor';
 import { DeleteConfirmModal } from '../../common/DeleteConfirmModal';
-import { cn } from '../../../utils/cn';
-import { copyToClipboard } from '../../../utils/clipboard';
-
-// ── 타입 헬퍼 ─────────────────────────────────────────────────────────────────
-
-const isBsonOid = (v: JsonValue): v is { $oid: string } =>
-  typeof v === 'object' && v !== null && !Array.isArray(v) &&
-  Object.keys(v as object).length === 1 &&
-  typeof (v as Record<string, unknown>)['$oid'] === 'string';
-
-type JsonFieldType = 'string' | 'number' | 'boolean' | 'null' | 'array' | 'object' | 'oid';
-
-const getFieldType = (v: JsonValue): JsonFieldType => {
-  if (v === null) return 'null';
-  if (isBsonOid(v)) return 'oid';
-  if (Array.isArray(v)) return 'array';
-  if (typeof v === 'object') return 'object';
-  return typeof v as 'string' | 'number' | 'boolean';
-};
-
-const resolveAtPath = (doc: Document, path: string[]): JsonValue => {
-  let node: JsonValue = doc;
-  for (const seg of path) {
-    if (node === null || typeof node !== 'object') return null;
-    if (Array.isArray(node)) {
-      node = (node as JsonValue[])[Number(seg)] ?? null;
-    } else {
-      node = (node as Record<string, JsonValue>)[seg] ?? null;
-    }
-  }
-  return node;
-};
-
-const getEntries = (node: JsonValue): { key: string; value: JsonValue }[] => {
-  if (node === null || typeof node !== 'object') return [];
-  if (Array.isArray(node)) {
-    return (node as JsonValue[]).map((v, i) => ({ key: String(i), value: v }));
-  }
-  return Object.entries(node as Record<string, JsonValue>).map(([k, v]) => ({ key: k, value: v }));
-};
-
-// ── 복사 버튼 ─────────────────────────────────────────────────────────────────
-
-function CopyBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-      onClick={(e) => {
-        e.stopPropagation();
-        copyToClipboard(text).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-    >
-      <AnimatePresence mode="wait" initial={false}>
-        {copied
-          ? <motion.span key="c" initial={{ scale: 0.5 }} animate={{ scale: 1 }} exit={{ scale: 0.5 }} className="block">
-              <Check size={16} className="text-emerald-500" />
-            </motion.span>
-          : <motion.span key="d" initial={{ scale: 0.5 }} animate={{ scale: 1 }} exit={{ scale: 0.5 }} className="block">
-              <Copy size={16} />
-            </motion.span>
-        }
-      </AnimatePresence>
-    </button>
-  );
-}
-
-// ── FieldItem ─────────────────────────────────────────────────────────────────
-
-interface FieldItemProps {
-  fieldKey: string;
-  isId: boolean;
-  isExpandable: boolean;
-  isEditable: boolean;
-  isHighlighted: boolean;
-  onEdit: () => void;
-  onClick: (() => void) | null;
-  children: React.ReactNode;
-}
-
-function FieldItem({
-  fieldKey, isId, isExpandable, isEditable, isHighlighted,
-  onEdit, onClick, children,
-}: FieldItemProps) {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-      className={cn(
-        'relative flex items-center gap-3 px-4 py-3.5 rounded-2xl',
-        onClick ? 'cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/60' : 'cursor-default',
-        isHighlighted ? 'bg-emerald-50/40' : '',
-      )}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={onClick ?? undefined}
-    >
-      <span className={cn(
-        'text-[13px] py-1.5 font-mono font-medium shrink-0 w-[20%] truncate',
-        isId ? 'text-slate-400' : 'text-slate-500',
-      )}>
-        {fieldKey}
-      </span>
-
-      <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-        {children}
-      </div>
-
-      <div className="flex items-center shrink-0">
-        {isExpandable && (
-          <motion.span
-            animate={{ x: hovered && isEditable ? 2 : 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="mr-1"
-          >
-            <ChevronRight size={15} className="text-slate-300" />
-          </motion.span>
-        )}
-        {isEditable && (
-          <AnimatePresence>
-            {hovered && (
-              <motion.div
-                className="flex items-center overflow-hidden"
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 'auto', opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                  onClick={onEdit}
-                >
-                  <Pencil size={16} />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        )}
-      </div>
-    </motion.div>
-  );
-}
+import { AddItemButton } from './AddItemButton';
+import { CopyBtn } from './CopyBtn';
+import { FieldItem } from './FieldItem';
+import { HeaderIcon } from './HeaderIcon';
+import { getFieldType, resolveAtPath, getEntries } from '../../../utils/jsonTree';
+import { isPathChanged } from '../../../utils/changedPaths';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -215,6 +67,14 @@ export function JsonLevelColumn({
   onUnregisterUniqueOid,
   onSetEditingId,
 }: JsonLevelColumnProps) {
+  // 위험 영역(의도적으로 더 쪼개지 않음): 아래부터 renderField까지는 refOid/myIndex
+  // 파생값, 두 개의 참조-문서 fetch effect, handlePushChild, deleteTarget/
+  // docOidForMutate 등이 같은 클로저 안에서 서로를 참조한다. 훅으로 뽑아내려면
+  // 이 변수들의 의존성 배열을 전부 정확히 복제해야 하는데, 이 프로젝트엔
+  // 테스트가 없어 의존성 배열 하나라도 빠뜨리면(stale closure) 타입체커도
+  // 잡아내지 못하고 런타임에서만 드러난다. 그래서 이번 리팩토링에서는
+  // 순수 유틸(jsonTree.ts)과 이미 독립적인 서브컴포넌트(CopyBtn/FieldItem/
+  // HeaderIcon)만 분리하고, 이 블록은 파일 경계를 넘기지 않았다.
   const refOid     = path.kind === 'reference' ? path.refOid     : null;
   const chainColor = path.kind === 'reference' ? path.chainColor : undefined;
   const chainIndex = path.kind === 'reference' ? path.chainIndex : 0;
@@ -248,6 +108,10 @@ export function JsonLevelColumn({
 
   // ── 탐색 — goSibling 패턴 ─────────────────────────────────────────────────
 
+  // 위험: myIndex는 의존성 배열에 직접 없고 slotIndex+activePaths.length로 매
+  // 렌더마다 다시 계산된다 — 의존성 배열의 slotIndex/activePaths가 myIndex의
+  // 실질적인 소스이므로 지금은 정확하지만, myIndex 계산식을 건드리면서
+  // 의존성 배열을 같이 안 고치면 stale closure가 생긴다(타입체커는 못 잡음).
   const handlePushChild = useCallback((key: string) => {
     const nextProj = [...projectionPath, key];
     const nextActivePath = activePaths[myIndex + 1];
@@ -314,12 +178,20 @@ export function JsonLevelColumn({
 
   // ── 필드 렌더러 ────────────────────────────────────────────────────────────
 
+  // 위험: 이 함수 하나가 ① 타입 분류 ② 편집 모드 분기(InlineSegmentEditor
+  // onSubmit 안에서 mutation payload까지 구성) ③ 값 표시 switch ④ 클릭 시
+  // 탐색/pop 결정 트리를 한 클로저에서 다 처리한다. 위쪽의 entries/
+  // projectionPath/editingId/uniqueOids/onMutate/handlePushChild 등 거의
+  // 모든 컴포넌트 상태를 읽으므로, 부분만 떼어내도 결국 이 상태를 거의
+  // 다 다시 전달해야 해서 분리 이득이 거의 없고 실수할 표면만 늘어난다.
+  // 그래서 그대로 두었다 — 수정할 땐 위 4개 책임 중 어디를 건드리는지
+  // 먼저 명확히 하고 시작할 것.
   const renderField = (fieldKey: string, value: JsonValue) => {
     const type = getFieldType(value);
     const isId = fieldKey === '_id';
     const editorId = `field:${[...projectionPath, fieldKey].join('.')}`;
     const isEditing = editingId === editorId;
-    const isHighlighted = changedPaths.some((p) => p.includes(fieldKey));
+    const isHighlighted = isPathChanged(changedPaths, fieldKey);
     const isExpandable = type === 'object' || type === 'array';
     // _id가 아닌 단일 {$oid} 필드는, 이 앱이 직접 만든 '고유 oid' 레지스트리에 없으면 DBRef(참조)로 간주
     const isOidRef = type === 'oid' && !isId && !uniqueOids.has((value as { $oid: string }).$oid);
@@ -562,23 +434,13 @@ export function JsonLevelColumn({
               onCancel={() => onSetEditingId(null)}
             />
           ) : (
-            <motion.button
-              type="button"
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-              className="group flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/50 transition-colors"
+            <AddItemButton
+              label={isArrayNode ? '항목 추가' : '필드 추가'}
               onClick={() => onSetEditingId(addFieldEditingId)}
-            >
-              <span className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border border-dashed border-slate-300 text-slate-400 group-hover:border-emerald-300 group-hover:text-emerald-500 transition-colors">
-                <Plus size={16} />
-              </span>
-              <span className="text-sm font-medium text-slate-400 group-hover:text-emerald-600 transition-colors">
-                {isArrayNode ? '항목 추가' : '필드 추가'}
-              </span>
-            </motion.button>
+              buttonClassName="group flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer hover:bg-slate-50/80 active:bg-slate-100/50 transition-colors"
+              iconClassName="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border border-dashed border-slate-300 text-slate-400 group-hover:border-emerald-300 group-hover:text-emerald-500 transition-colors"
+              textClassName="text-sm font-medium text-slate-400 group-hover:text-emerald-600 transition-colors"
+            />
           )
         )}
       </div>
@@ -610,12 +472,4 @@ export function JsonLevelColumn({
       )}
     </div>
   );
-}
-
-// ── 헤더 아이콘 ───────────────────────────────────────────────────────────────
-
-function HeaderIcon({ node }: { node: JsonValue }) {
-  if (node === null || typeof node !== 'object') return null;
-  if (Array.isArray(node)) return <List size={14} className="text-slate-400 shrink-0" />;
-  return <Braces size={14} className="text-slate-400 shrink-0" />;
 }

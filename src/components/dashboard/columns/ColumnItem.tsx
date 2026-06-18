@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pencil, ChevronRight } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { SPRING_HOVER } from '../../../utils/motionPresets';
+import { useHover } from '../../../hooks/useHover';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 export interface ColumnItemProps {
-  id: string;
   label: string;
   meta?: string;
   iconLabel?: string;
@@ -34,7 +35,7 @@ export function ColumnItem({
   onDelete,
 }: ColumnItemProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [hovered, setHovered] = useState(false);
+  const { hovered, hoverHandlers } = useHover();
   const hasActions = !!(onEdit || onDelete);
 
   useEffect(() => {
@@ -59,8 +60,7 @@ export function ColumnItem({
           ? 'bg-emerald-50/80'
           : 'hover:bg-slate-50/80 active:bg-slate-100/50',
       )}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      {...hoverHandlers}
       onClick={onSelect}
       whileTap={{ scale: 0.99 }}
       transition={{ type: 'spring', stiffness: 500, damping: 40 }}
@@ -122,7 +122,7 @@ export function ColumnItem({
                   initial={{ width: 0, opacity: 0 }}
                   animate={{ width: 'auto', opacity: 1 }}
                   exit={{ width: 0, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  transition={SPRING_HOVER}
                 >
                   {onEdit && (
                     <button

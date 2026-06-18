@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Download, Upload, Plus, Loader2, Check } from 'lucide-react';
 import { exportSnapshot } from '../../services/mockStorage';
-import type { MockMutationRequest, DatabaseSummary } from '../../types/explorer';
+import type { MockMutationRequest } from '../../types/explorer';
 import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import { cn } from '../../utils/cn';
 
@@ -46,7 +46,6 @@ const styles = {
 interface FloatingDataManagerProps {
   isOpen: boolean;
   onClose: () => void;
-  databases: DatabaseSummary[];
   activeDatabase: string | null;
   onMutate: (op: MockMutationRequest) => Promise<unknown>;
 }
@@ -56,7 +55,6 @@ interface FloatingDataManagerProps {
 export function FloatingDataManager({
   isOpen,
   onClose,
-  databases,
   activeDatabase,
   onMutate,
 }: FloatingDataManagerProps) {

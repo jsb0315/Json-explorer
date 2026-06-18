@@ -6,6 +6,7 @@ import { Header } from '../components/layout/Header';
 import { Breadcrumbs } from '../components/dashboard/Breadcrumbs';
 import { MillerColumns } from '../components/dashboard/MillerColumns';
 import { FloatingDataManager } from '../components/editors/FloatingDataManager';
+import { SPRING_SOFT } from '../utils/motionPresets';
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
 
@@ -119,7 +120,6 @@ export default function ExplorerPage() {
       <FloatingDataManager
         isOpen={dataManagerOpen}
         onClose={() => setDataManagerOpen(false)}
-        databases={databases}
         activeDatabase={activeDatabase}
         onMutate={mutate}
       />
@@ -132,7 +132,7 @@ export default function ExplorerPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              transition={SPRING_SOFT}
             >
               <span>{toast.message}</span>
               {toast.undoable && (

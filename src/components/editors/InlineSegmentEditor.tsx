@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, X, Trash2, ChevronRight, ToggleLeft, Hash, Type, Braces, List, Link, KeyRound, Zap, RefreshCw, ClipboardPaste, Upload, Copy, Download } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { SPRING_SOFT } from '../../utils/motionPresets';
 import type { JsonValue } from '../../types/explorer';
 import { getCollections, getDocuments, type ReferenceInfo } from '../../services/mockAPI';
 import { generateObjectId } from '../../utils/objectId';
@@ -26,6 +27,10 @@ const TYPE_META: Record<FieldType, TypeMeta> = {
 };
 
 const ALL_TYPES: FieldType[] = ['String', 'Number', 'Boolean', 'Object', 'Array', 'ObjectID'];
+
+const isInvalidJson = (text: string): boolean => {
+  try { JSON.parse(text); return false; } catch { return true; }
+};
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -86,6 +91,15 @@ const styles = {
 
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────────
 
+// 위험 영역(의도적으로 더 쪼개지 않음): 이 컴포넌트는 ObjectID 피커/Import/
+// Export/타입 아코디언 4개의 하위 기능을 키 상태 대부분 독립적으로 갖고
+// 있어 훅으로 분리하기 쉬워 보이지만, handleSubmit(아래)이 그 4개의 상태를
+// 전부 한 번에 읽어 제출 payload를 구성하는 통합 지점이다. 훅으로 쪼개도
+// 그 결과값을 결국 handleSubmit까지 다시 끌어올려야 해서 복잡도가 줄지
+// 않고, 각 훅의 의존성 배열을 옮기다 하나라도 놓치면 제출 데이터가 조용히
+// 빠지는 버그가 생긴다 — 테스트가 없어 타입체커도 못 잡는다. 그래서 그대로
+// 두었다. 수정이 꼭 필요하면 Export 쪽(handleExportCopy/Download,
+// exportCopied)이 다른 상태에 가장 적게 의존하므로 그 부분부터 볼 것.
 export function InlineSegmentEditor({
   mode,
   level,
@@ -188,14 +202,10 @@ export function InlineSegmentEditor({
   const isSimpleLevel = level === 'collection' || level === 'document';
 
   // container(object/array) 수정 모드에서 raw JSON 붙여넣기 검증 — 비어있으면 기존 값 유지로 간주
-  const containerJsonError = isContainerEditMode && rawValue.trim() !== '' && (() => {
-    try { JSON.parse(rawValue); return false; } catch { return true; }
-  })();
+  const containerJsonError = isContainerEditMode && rawValue.trim() !== '' && isInvalidJson(rawValue);
 
   // Import 미리보기 textarea의 JSON 유효성 — 비어있으면 import 없이 그냥 제출
-  const importJsonError = isImportOpen && importText.trim() !== '' && (() => {
-    try { JSON.parse(importText); return false; } catch { return true; }
-  })();
+  const importJsonError = isImportOpen && importText.trim() !== '' && isInvalidJson(importText);
 
   const canSubmit =
     keyValue.trim() !== '' &&
@@ -329,7 +339,7 @@ export function InlineSegmentEditor({
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+      transition={SPRING_SOFT}
       className={cn(
         styles.container,
         mode === 'add' ? styles.containerAdd : styles.containerEdit,
@@ -440,7 +450,7 @@ export function InlineSegmentEditor({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                transition={SPRING_SOFT}
                 className="overflow-hidden"
               >
                 <div className="flex flex-col gap-1">
@@ -483,7 +493,7 @@ export function InlineSegmentEditor({
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                  transition={SPRING_SOFT}
                   className="flex flex-1 overflow-hidden"
                 >
                   <div className="flex flex-wrap gap-1 pb-1">
@@ -492,10 +502,7 @@ export function InlineSegmentEditor({
                         key={t}
                         type="button"
                         className={cn(styles.typeTab, selectedType === t && styles.typeTabActive)}
-                        onClick={() => {
-                          setSelectedType(t);
-                          // setTypeAccordionOpen(false);
-                        }}
+                        onClick={() => setSelectedType(t)}
                       >
                         {TYPE_META[t].icon}
                         <span>{t}</span>

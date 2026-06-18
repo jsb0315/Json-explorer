@@ -10,6 +10,14 @@ export interface DBRef {
   $db: string;
 }
 
+export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const isBsonObjectId = (value: unknown): value is BsonObjectId =>
+  isPlainObject(value) &&
+  Object.keys(value).length === 1 &&
+  typeof value.$oid === 'string';
+
 // ── JSON 원자 타입 ────────────────────────────────────────────────────────────
 
 export type JsonPrimitive = string | number | boolean | null;

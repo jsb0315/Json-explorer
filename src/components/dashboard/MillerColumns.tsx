@@ -20,11 +20,10 @@ const colVariants = {
     scale: 0.96,
   }),
   center: { x: 0, opacity: 1, scale: 1 },
-  exit: (dir: number) => ({
-    // x: dir > 0 ? '-40%' : '40%',
+  exit: {
     opacity: 0,
     scale: 0.94,
-  }),
+  },
 };
 
 const spring = { type: 'spring' as const, stiffness: 260, damping: 28 };
@@ -89,9 +88,7 @@ export function MillerColumns({
   const direction = useMemo(() => {
     for (let i = visibleColumns.length - 1; i >= 0; i--) {
       const col = visibleColumns[i];
-      if (col) 
-        // if (i === visibleColumns.length - 3) return -col.comp.direction; // 가장 오른쪽 컬럼 방향 우선
-        return col.comp.direction;
+      if (col) return col.comp.direction;
     }
     return 1;
   }, [visibleColumns]);
@@ -105,6 +102,11 @@ export function MillerColumns({
   const activeDocumentOid = useMemo(() => {
     const jsonPath = activePaths.find((p) => p.columnKind === 'json' && p.kind === 'normal' && !p.projectionPath?.length);
     return jsonPath?.kind === 'normal' ? jsonPath.documentOid ?? null : null;
+  }, [activePaths]);
+
+  const activeDatabaseName = useMemo(() => {
+    const cp = activePaths.find((p) => p.columnKind === 'collections');
+    return cp?.kind === 'normal' ? (cp.databaseName ?? null) : null;
   }, [activePaths]);
 
   return (
@@ -148,6 +150,7 @@ export function MillerColumns({
                   activePaths={activePaths}
                   activeCollectionName={activeCollectionName}
                   activeDocumentOid={activeDocumentOid}
+                  activeDatabaseName={activeDatabaseName}
                   selectCollection={selectCollection}
                   selectDocument={selectDocument}
                   pushJsonPath={pushJsonPath}
@@ -177,6 +180,7 @@ interface ColumnContentProps extends Omit<MillerColumnsProps, 'visibleColumns'> 
   slotIndex: number;
   activeCollectionName: string | null;
   activeDocumentOid: string | null;
+  activeDatabaseName: string | null;
 }
 
 function ColumnContent({ col, slotIndex, ...rest }: ColumnContentProps) {
@@ -207,9 +211,7 @@ function ColumnContent({ col, slotIndex, ...rest }: ColumnContentProps) {
         changedPaths={rest.changedPaths}
         editingId={rest.editingId}
         activeCollectionName={rest.activeCollectionName}
-        activeDatabaseName={
-          (() => { const cp = rest.activePaths.find((p) => p.columnKind === 'collections'); return cp?.kind === 'normal' ? (cp.databaseName ?? null) : null; })()
-        }
+        activeDatabaseName={rest.activeDatabaseName}
         onSelectDocument={rest.selectDocument}
         onMutate={rest.mutate}
         onSetEditingId={rest.setEditingId}
@@ -227,9 +229,7 @@ function ColumnContent({ col, slotIndex, ...rest }: ColumnContentProps) {
       editingId={rest.editingId}
       activePaths={rest.activePaths}
       activeCollectionName={rest.activeCollectionName}
-      activeDatabaseName={
-        (() => { const cp = rest.activePaths.find((p) => p.columnKind === 'collections'); return cp?.kind === 'normal' ? (cp.databaseName ?? null) : null; })()
-      }
+      activeDatabaseName={rest.activeDatabaseName}
       onPushJsonPath={rest.pushJsonPath}
       onPushReference={rest.pushReference}
       onNavigateToReference={rest.navigateToReference}
