@@ -108,6 +108,10 @@ export function CollectionsColumn({
                   }}
                   onCancel={() => onSetEditingId(null)}
                   onDelete={() => setDeleteTarget(col)}
+                  onDuplicate={async () => {
+                    await onMutate({ type: 'duplicateCollection', database: databaseName, collection: col.name });
+                    onSetEditingId(null);
+                  }}
                 />
               );
             }

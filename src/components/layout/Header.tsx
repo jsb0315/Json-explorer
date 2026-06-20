@@ -1,20 +1,20 @@
 // path: src/components/layout/Header.tsx
-import type { ChangeEvent } from 'react';
-import { ChevronDown, Circle, RefreshCw } from 'lucide-react';
+import { Circle, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { UseExplorerStateResult } from '../../hooks/useExplorerState';
 import { cn } from '../../utils/cn';
+import { DatabaseDropdown } from './DatabaseDropdown';
 
 type HeaderProps = Pick<
   UseExplorerStateResult,
-  'activeDatabase' | 'connectionStatus' | 'databases' | 'selectDatabase'
+  'activeDatabase' | 'connectionStatus' | 'databases' | 'selectDatabase' | 'mutate'
 > & {
   onRefresh: () => void;
 };
 
 const styles = {
   header:
-    'flex h-14 min-h-14 w-full items-center border-b border-slate-200/80 bg-white/85 px-3 backdrop-blur-md rounded-[14px] shadow-[0_8px_30px_rgba(15,23,42,0.04)]',
+    'flex min-h-14 w-full items-center border-b border-slate-200/80 bg-white/85 px-3 backdrop-blur-md rounded-[14px] shadow-[0_8px_30px_rgba(15,23,42,0.04)]',
   inner: 'flex w-full min-w-0 items-center gap-3',
   left: 'flex min-w-0 items-center gap-2.5',
   logoMark:
@@ -32,14 +32,6 @@ const styles = {
   refreshBadge:
     'absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-white shadow-[0_0_0_1px_rgba(255,255,255,1)]',
   refreshBadgeDot: 'h-2.5 w-2.5',
-  dbField:
-    'relative min-w-[240px] max-w-[320px] overflow-hidden rounded-[14px] border border-slate-200 bg-white px-4 py-2 shadow-[0_10px_30px_rgba(15,23,42,0.04)]',
-  dbMeta: 'pointer-events-none flex items-center justify-between gap-3',
-  dbLabel: 'text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400',
-  dbValue: 'min-w-0 flex-1 truncate text-sm font-semibold text-slate-700',
-  dbArrow: 'shrink-0 text-slate-500',
-  select:
-    'absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/20',
 } as const;
 
 const STATUS_STYLES: Record<UseExplorerStateResult['connectionStatus'], { color: string; label: string }> = {
@@ -66,26 +58,10 @@ export function Header({
   connectionStatus,
   databases,
   selectDatabase,
+  mutate,
   onRefresh,
 }: HeaderProps) {
-  const hasDatabases = databases.length > 0;
-  const selectedValue = activeDatabase ?? '';
   const status = STATUS_STYLES[connectionStatus];
-  const selectedDatabaseLabel =
-    hasDatabases && activeDatabase
-      ? databases.find((database) => database.name === activeDatabase)?.label ?? activeDatabase
-      : hasDatabases
-        ? 'Select database'
-        : 'Loading databases...';
-
-  const handleDatabaseChange = (event: ChangeEvent<HTMLSelectElement>): void => {
-    const nextDatabase = event.target.value;
-    if (!nextDatabase) {
-      return;
-    }
-
-    void selectDatabase(nextDatabase);
-  };
 
   return (
     <motion.header
@@ -101,9 +77,9 @@ export function Header({
           </div>
           <div className={styles.wordmark}>
             <div className={styles.titleRow}>
-              <span className={styles.title}>MongoLive</span>
+              <span className={styles.title}>MongoLive - JSON Explorer & Editor</span>
             </div>
-            <p className={styles.subtitle}>MongoDB explorer shell</p>
+            <p className={styles.subtitle}>Miller Column-based JSON viewer & inline editor</p>
           </div>
         </div>
 
@@ -123,33 +99,12 @@ export function Header({
             </span>
           </div>
 
-          <div className={styles.dbField}>
-            <div className={styles.dbMeta} aria-hidden="true">
-              <span className={styles.dbLabel}>Database</span>
-              <span className={styles.dbValue}>{selectedDatabaseLabel}</span>
-              <ChevronDown className={styles.dbArrow} size={16} />
-            </div>
-            <select
-              className={styles.select}
-              value={selectedValue}
-              onChange={handleDatabaseChange}
-              disabled={!hasDatabases}
-              aria-label="Select database"
-            >
-              {hasDatabases ? (
-                <option value="" disabled>
-                  Select database
-                </option>
-              ) : (
-                <option value="">Loading databases...</option>
-              )}
-              {databases.map((database) => (
-                <option key={database.name} value={database.name}>
-                  {database.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <DatabaseDropdown
+            activeDatabase={activeDatabase}
+            databases={databases}
+            selectDatabase={selectDatabase}
+            onMutate={mutate}
+          />
         </div>
       </div>
     </motion.header>

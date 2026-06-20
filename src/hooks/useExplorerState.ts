@@ -6,6 +6,7 @@ import {
   getFullDocumentById,
   getDocuments,
   getReferenceInfo,
+  listDatabases,
   mutateData,
   checkReference,
   subscribeToChanges,
@@ -413,7 +414,7 @@ export function useExplorerState(): UseExplorerStateResult {
       }
       // 컬렉션 메타데이터(이름/타이틀 키 등) 변경 시 collections 캐시도 갱신
       if (
-        (op.type === 'createCollection' || op.type === 'renameCollection' || op.type === 'setCollectionTitleKey' || op.type === 'deleteCollection') &&
+        (op.type === 'createCollection' || op.type === 'renameCollection' || op.type === 'setCollectionTitleKey' || op.type === 'deleteCollection' || op.type === 'duplicateCollection') &&
         op.database === activeDatabaseRef.current
       ) {
         const cols = await getCollections(op.database);
@@ -429,6 +430,76 @@ export function useExplorerState(): UseExplorerStateResult {
             setDocuments(docs);
           }
         }
+      }
+
+      // 헤더 DB 드롭다운 목록 갱신
+      if (
+        op.type === 'createDatabase' ||
+        op.type === 'renameDatabase' ||
+        op.type === 'duplicateDatabase' ||
+        op.type === 'deleteDatabase'
+      ) {
+        setDatabases(await listDatabases());
+      }
+
+      if (op.type === 'createDatabase' || op.type === 'duplicateDatabase') {
+        // 새로 생성/복제된 DB로 포커스 이동 (mockAPI가 activeDatabase를 이미 그쪽으로 옮겨둠)
+        const nextDb = result.snapshot.activeDatabase;
+        activeDatabaseRef.current = nextDb;
+        activeCollectionRef.current = null;
+        activeDocumentOidRef.current = null;
+        setActiveDatabase(nextDb);
+        setDocuments([]);
+        setOpenDocument(null);
+        const cols = await getCollections(nextDb);
+        setCollections(cols);
+        setActivePaths([
+          {
+            kind: 'normal',
+            columnKind: 'collections',
+            label: nextDb,
+            databaseName: nextDb,
+            comp: { id: nextPathId(), direction: -1 },
+          },
+        ]);
+        setEditingId(null);
+      } else if (op.type === 'renameDatabase' && activeDatabaseRef.current === op.oldName) {
+        // 보고 있던 DB 자체의 이름(키)이 바뀜 — ref/경로의 databaseName을 새 이름으로 맞춰준다
+        activeDatabaseRef.current = op.newName;
+        setActiveDatabase(op.newName);
+        setActivePaths((prev) =>
+          prev.map((p) =>
+            p.kind === 'normal' && p.databaseName === op.oldName
+              ? { ...p, databaseName: op.newName, label: op.newName }
+              : p,
+          ),
+        );
+      } else if (op.type === 'deleteDatabase' && activeDatabaseRef.current === op.database) {
+        // 보고 있던 DB가 삭제됨 — mockAPI가 골라준 다음 DB로 이동하거나(없으면 빈 상태로)
+        const nextDb = result.snapshot.activeDatabase || null;
+        activeDatabaseRef.current = nextDb;
+        activeCollectionRef.current = null;
+        activeDocumentOidRef.current = null;
+        setActiveDatabase(nextDb);
+        setDocuments([]);
+        setOpenDocument(null);
+        if (nextDb) {
+          const cols = await getCollections(nextDb);
+          setCollections(cols);
+          setActivePaths([
+            {
+              kind: 'normal',
+              columnKind: 'collections',
+              label: nextDb,
+              databaseName: nextDb,
+              comp: { id: nextPathId(), direction: -1 },
+            },
+          ]);
+        } else {
+          setCollections([]);
+          setActivePaths([]);
+        }
+        setEditingId(null);
       }
 
       showToast('저장 완료', 'success', true);

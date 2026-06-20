@@ -5,7 +5,6 @@ import { useExplorerState } from '../hooks/useExplorerState';
 import { Header } from '../components/layout/Header';
 import { Breadcrumbs } from '../components/dashboard/Breadcrumbs';
 import { MillerColumns } from '../components/dashboard/MillerColumns';
-import { FloatingDataManager } from '../components/editors/FloatingDataManager';
 import { SPRING_SOFT } from '../utils/motionPresets';
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
@@ -24,7 +23,6 @@ const styles = {
 
 export default function ExplorerPage() {
   const state = useExplorerState();
-  const [dataManagerOpen, setDataManagerOpen] = useState(false);
 
   // 초기 연결
   useEffect(() => {
@@ -71,6 +69,7 @@ export default function ExplorerPage() {
         connectionStatus={connectionStatus}
         databases={databases}
         selectDatabase={selectDatabase}
+        mutate={mutate}
         onRefresh={() => void refresh()}
       />
 
@@ -106,23 +105,6 @@ export default function ExplorerPage() {
         />
       </div>
 
-      {/* FAB: 데이터 매니저 */}
-      <button
-        type="button"
-        className={styles.fab}
-        onClick={() => setDataManagerOpen(true)}
-        aria-label="데이터 매니저 열기"
-      >
-        <Database size={18} />
-      </button>
-
-      {/* 데이터 매니저 패널 */}
-      <FloatingDataManager
-        isOpen={dataManagerOpen}
-        onClose={() => setDataManagerOpen(false)}
-        activeDatabase={activeDatabase}
-        onMutate={mutate}
-      />
       <div className={styles.toastPositioner} aria-live="assertive">
         <AnimatePresence>
           {toast && (

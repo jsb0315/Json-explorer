@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, X, Trash2, ChevronRight, ToggleLeft, Hash, Type, Braces, List, Link, KeyRound, Zap, RefreshCw, ClipboardPaste, Upload, Copy, Download } from 'lucide-react';
+import { Check, X, Trash2, ChevronRight, ToggleLeft, Hash, Type, Braces, List, Link, KeyRound, Zap, RefreshCw, ClipboardPaste, Upload, CopyPlus, Download, ClipboardCopy } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { SPRING_SOFT } from '../../utils/motionPresets';
 import type { JsonValue } from '../../types/explorer';
@@ -57,6 +57,7 @@ interface InlineSegmentEditorProps {
   onSubmit: (data: InlineSegmentEditorSubmitData) => Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
+  onDuplicate?: () => void;
 }
 
 // ── 스타일 ────────────────────────────────────────────────────────────────────
@@ -66,9 +67,13 @@ const styles = {
   containerAdd: 'ring-emerald-200/70 bg-emerald-50/30',
   containerEdit: 'ring-slate-200/70',
   inner: 'p-3 flex flex-col gap-2.5',
-  row: 'flex items-center gap-2',
-  input: 'flex-1 min-w-0 text-sm px-3 py-2 rounded-xl bg-slate-100/80 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:bg-white transition-all',
+  row: 'flex items-center gap-2 w-full',
+  input: 'flex w-full min-w-0 text-md px-3 py-2 rounded-xl bg-slate-100/80 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:bg-white transition-all',
+  inputWithIcons: 'pr-16',
   inputError: 'ring-2 ring-red-300 bg-red-50/70',
+  inputWrap: 'relative min-w-0 w-full',
+  inputIcons: 'absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5',
+  inputIconBtn: 'p-1.5 rounded-lg text-slate-400 hover:bg-slate-200/70 hover:text-slate-600 transition-colors',
   errorMsg: 'text-xs text-red-500 px-0.5',
   // 타입 선택기
   typeBtn: 'shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/70 transition-colors font-medium text-slate-600 whitespace-nowrap',
@@ -76,15 +81,15 @@ const styles = {
   typeTab: 'shrink-0 flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/70 transition-colors font-medium text-slate-500 cursor-pointer whitespace-nowrap',
   typeTabActive: 'bg-emerald-100 text-emerald-700 font-semibold hover:bg-emerald-100',
   // 값 입력
-  valueInput: 'w-full text-sm px-3 py-2 rounded-xl bg-slate-100/80 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:bg-white transition-all',
+  valueInput: 'w-full text-md px-3 py-2 rounded-xl bg-slate-100/80 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:bg-white transition-all',
   oidDisplay: 'flex-1 min-w-0 text-[12px] font-mono text-slate-500 px-3 py-2 rounded-xl bg-slate-100/80 truncate',
-  textarea: 'w-full text-sm px-3 py-2 rounded-xl bg-slate-100/80 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:bg-white transition-all font-mono resize-none',
+  textarea: 'w-full text-md px-3 py-2 rounded-xl bg-slate-100/80 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:bg-white transition-all font-mono resize-y',
   toggle: 'relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0',
   toggleThumb: 'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform',
   // 액션 버튼
   actions: 'flex items-center ml-auto',
   actionBtn: 'p-2 rounded-xl transition-colors',
-  deleteBtn: 'hover:bg-red-50 text-slate-400 hover:text-red-500',
+  deleteBtn: 'hover:bg-red-50 text-red-400',
   submitBtn: 'text-emerald-500 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none',
   cancelBtn: 'hover:bg-slate-100 text-slate-400 hover:text-slate-600',
 } as const;
@@ -113,6 +118,7 @@ export function InlineSegmentEditor({
   onSubmit,
   onCancel,
   onDelete,
+  onDuplicate,
 }: InlineSegmentEditorProps) {
   const [keyValue, setKeyValue] = useState(initialKey);
   const [selectedType, setSelectedType] = useState<FieldType>(initialType);
@@ -162,6 +168,7 @@ export function InlineSegmentEditor({
     if (currentRefInfo && !refPrefilledRef.current) {
       refPrefilledRef.current = true;
       setRefCollectionName(currentRefInfo.collectionName);
+      setObjectIdMode('pick');
     }
   }, [currentRefInfo]);
   const keyInputRef = useRef<HTMLInputElement>(null);
@@ -217,18 +224,39 @@ export function InlineSegmentEditor({
 
   // ── Import 헬퍼 ──────────────────────────────────────────────────────────────
 
-  const tryAutoFillKeyFromImport = (text: string) => {
-    if (keyValue.trim() !== '') return;
+  // textarea의 JSON에서 name(또는 title) 값을 읽어옴 — 파싱 실패 시 null
+  const extractNameFromImportJson = (text: string): string | null => {
     try {
       const parsed = JSON.parse(text) as unknown;
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         const candidate = (parsed as Record<string, unknown>).name ?? (parsed as Record<string, unknown>).title;
-        if (typeof candidate === 'string' && candidate.trim()) {
-          setKeyValue(candidate);
-        }
+        if (typeof candidate === 'string') return candidate;
       }
     } catch {
       // 파싱 실패는 textarea 쪽 에러 메시지로 표시되므로 여기선 무시
+    }
+    return null;
+  };
+
+  // textarea JSON 변경 → input(keyValue) 동기화
+  const syncKeyFromImportText = (text: string) => {
+    const name = extractNameFromImportJson(text);
+    if (name !== null) setKeyValue(name);
+  };
+
+  // input(keyValue) 변경 → textarea JSON의 name(또는 title) 필드 동기화
+  const syncImportTextFromKey = (newKey: string) => {
+    if (importText.trim() === '') return;
+    try {
+      const parsed = JSON.parse(importText) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const obj = parsed as Record<string, unknown>;
+        const field = 'title' in obj && !('name' in obj) ? 'title' : 'name';
+        obj[field] = newKey;
+        setImportText(JSON.stringify(obj, null, 2));
+      }
+    } catch {
+      // textarea의 JSON이 깨져 있으면 동기화하지 않음
     }
   };
 
@@ -236,7 +264,7 @@ export function InlineSegmentEditor({
     try {
       const text = await navigator.clipboard.readText();
       setImportText(text);
-      tryAutoFillKeyFromImport(text);
+      syncKeyFromImportText(text);
     } finally {
       setIsImportOpen(true);
     }
@@ -247,7 +275,7 @@ export function InlineSegmentEditor({
     reader.onload = () => {
       const text = typeof reader.result === 'string' ? reader.result : '';
       setImportText(text);
-      tryAutoFillKeyFromImport(text);
+      syncKeyFromImportText(text);
       setIsImportOpen(true);
     };
     reader.readAsText(file);
@@ -348,80 +376,99 @@ export function InlineSegmentEditor({
       <div className={styles.inner}>
         {/* Key 입력 */}
         <div className={styles.row}>
-          <input
-            ref={keyInputRef}
-            type="text"
-            className={cn(
-              styles.input,
-              isDuplicate && styles.inputError,
-              isDragOver && 'ring-2 ring-emerald-400/60 bg-emerald-50/40',
+          <div className={styles.inputWrap}>
+            <input
+              ref={keyInputRef}
+              type="text"
+              className={cn(
+                styles.input,
+                isSimpleLevel && (mode === 'add' || (mode === 'edit' && onExportRequest)) && styles.inputWithIcons,
+                isDuplicate && styles.inputError,
+                isDragOver && 'ring-2 ring-emerald-400/60 bg-emerald-50/40',
+              )}
+              placeholder={level === 'collection' ? '컬렉션 이름 (영문)' : level === 'document' ? '문서 이름' : '키 이름'}
+              value={keyValue}
+              disabled={mode === 'add' && keyValue.trim() !== '' && !Number.isNaN(Number(keyValue))}
+              onChange={(e) => {
+                const v = e.target.value;
+                setKeyValue(v);
+                if (isSimpleLevel && mode === 'add') syncImportTextFromKey(v);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleSubmit();
+                if (e.key === 'Escape') onCancel();
+                if (isSimpleLevel && mode === 'add' && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+                  e.preventDefault();
+                  void handlePasteImport();
+                }
+              }}
+              onDragOver={isSimpleLevel && mode === 'add' ? (e) => { e.preventDefault(); setIsDragOver(true); } : undefined}
+              onDragLeave={isSimpleLevel && mode === 'add' ? () => setIsDragOver(false) : undefined}
+              onDrop={isSimpleLevel && mode === 'add' ? handleInputDrop : undefined}
+            />
+
+            {/* Import: 붙여넣기 / 파일 업로드 — input 내부 아이콘 */}
+            {isSimpleLevel && mode === 'add' && (
+              <div className={styles.inputIcons}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                />
+                <button
+                  type="button"
+                  className={styles.inputIconBtn}
+                  title="클립보드에서 붙여넣기"
+                  onClick={() => void handlePasteImport()}
+                >
+                  <ClipboardPaste size={16} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.inputIconBtn}
+                  title="파일 업로드"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload size={16} />
+                </button>
+              </div>
             )}
-            placeholder={level === 'collection' ? '컬렉션 이름 (영문)' : level === 'document' ? '문서 이름' : '키 이름'}
-            value={keyValue}
-            disabled={mode === 'add' && keyValue.trim() !== '' && !Number.isNaN(Number(keyValue))}
-            onChange={(e) => setKeyValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void handleSubmit(); if (e.key === 'Escape') onCancel(); }}
-            onDragOver={isSimpleLevel && mode === 'add' ? (e) => { e.preventDefault(); setIsDragOver(true); } : undefined}
-            onDragLeave={isSimpleLevel && mode === 'add' ? () => setIsDragOver(false) : undefined}
-            onDrop={isSimpleLevel && mode === 'add' ? handleInputDrop : undefined}
-          />
 
-          {/* Import: 붙여넣기 / 파일 업로드 */}
-          {isSimpleLevel && mode === 'add' && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={handleFileInputChange}
-              />
-              <button
-                type="button"
-                className={cn(styles.actionBtn, styles.cancelBtn)}
-                title="클립보드에서 붙여넣기"
-                onClick={() => void handlePasteImport()}
-              >
-                <ClipboardPaste size={14} />
-              </button>
-              <button
-                type="button"
-                className={cn(styles.actionBtn, styles.cancelBtn)}
-                title="파일 업로드"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={14} />
-              </button>
-            </>
-          )}
-
-          {/* Export: 복사 / 다운로드 */}
-          {isSimpleLevel && mode === 'edit' && onExportRequest && (
-            <>
-              <button
-                type="button"
-                className={cn(styles.actionBtn, styles.cancelBtn)}
-                title="JSON 복사"
-                onClick={() => void handleExportCopy()}
-              >
-                {exportCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-              </button>
-              <button
-                type="button"
-                className={cn(styles.actionBtn, styles.cancelBtn)}
-                title="파일로 다운로드"
-                onClick={() => void handleExportDownload()}
-              >
-                <Download size={14} />
-              </button>
-            </>
-          )}
+            {/* Export: 복사 / 다운로드 — input 내부 아이콘 */}
+            {isSimpleLevel && mode === 'edit' && onExportRequest && (
+              <div className={styles.inputIcons}>
+                <button
+                  type="button"
+                  className={styles.inputIconBtn}
+                  title="JSON 복사"
+                  onClick={() => void handleExportCopy()}
+                >
+                  {exportCopied ? <Check size={16} className="text-emerald-500" /> : <ClipboardCopy size={16} />}
+                </button>
+                <button
+                  type="button"
+                  className={styles.inputIconBtn}
+                  title="파일로 다운로드"
+                  onClick={() => void handleExportDownload()}
+                >
+                  <Download size={16} />
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* 액션 버튼 */}
           <div className={styles.actions}>
+            {onDuplicate && (
+              <button type="button" className={cn(styles.actionBtn, styles.cancelBtn)} title="복제" onClick={onDuplicate}>
+                <CopyPlus size={16} />
+              </button>
+            )}
             {onDelete && (
               <button type="button" className={cn(styles.actionBtn, styles.deleteBtn)} onClick={onDelete}>
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             )}
             <button
@@ -433,7 +480,7 @@ export function InlineSegmentEditor({
               <Check size={16} />
             </button>
             <button type="button" className={cn(styles.actionBtn, styles.cancelBtn)} onClick={onCancel}>
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -460,7 +507,7 @@ export function InlineSegmentEditor({
                     rows={6}
                     placeholder={level === 'collection' ? '{ "name": "...", "documents": [...] }' : '{ "_id": { "$oid": "..." }, "name": "..." }'}
                     value={importText}
-                    onChange={(e) => { setImportText(e.target.value); tryAutoFillKeyFromImport(e.target.value); }}
+                    onChange={(e) => { setImportText(e.target.value); syncKeyFromImportText(e.target.value); }}
                   />
                   {importJsonError && <p className={styles.errorMsg}>유효한 JSON이 아닙니다.</p>}
                 </div>
@@ -576,7 +623,7 @@ export function InlineSegmentEditor({
                       onClick={() => setGeneratedOid(generateObjectId())}
                       title="재생성"
                     >
-                      <RefreshCw size={14} />
+                      <RefreshCw size={16} />
                     </button>
                   </div>
                 ) : (

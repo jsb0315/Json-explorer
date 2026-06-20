@@ -180,6 +180,31 @@ export type MockMutationRequest =
       label: string;
     }
   | {
+      type: 'renameDatabase';
+      oldName: string;
+      newName: string;
+      label: string;
+    }
+  | {
+      type: 'duplicateDatabase';
+      database: string;
+    }
+  | {
+      type: 'deleteDatabase';
+      database: string;
+    }
+  | {
+      type: 'duplicateCollection';
+      database: string;
+      collection: string;
+    }
+  | {
+      type: 'duplicateDocument';
+      database: string;
+      collection: string;
+      documentId: string;
+    }
+  | {
       type: 'deleteCollection';
       database: string;
       collection: string;

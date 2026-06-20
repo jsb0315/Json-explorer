@@ -164,6 +164,16 @@ export function DocumentsColumn({
                   }}
                   onCancel={() => onSetEditingId(null)}
                   onDelete={() => setDeleteTarget(doc)}
+                  onDuplicate={async () => {
+                    if (!activeCollectionName || !activeDatabaseName) return;
+                    await onMutate({
+                      type: 'duplicateDocument',
+                      database: activeDatabaseName,
+                      collection: activeCollectionName,
+                      documentId: doc.id,
+                    });
+                    onSetEditingId(null);
+                  }}
                 />
               );
             }
