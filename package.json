@@ -1,11 +1,11 @@
 {
-  "name": "json_explorer",
+  "name": "json-explorer",
   "version": "0.1.0",
   "private": false,
   "type": "module",
   "description": "Reusable Data Explorer UI components for MongoDB real-time dashboards.",
-  "main": "dist/Json_explorer.cjs",
-  "module": "dist/Json_explorer.js",
+  "main": "dist/Json-explorer.cjs",
+  "module": "dist/Json-explorer.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
@@ -17,8 +17,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/Json_explorer.js",
-      "require": "./dist/Json_explorer.cjs"
+      "import": "./dist/Json-explorer.js",
+      "require": "./dist/Json-explorer.cjs"
     },
     "./styles.css": "./dist/style.css"
   },
@@ -29,7 +29,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://jsb0315.github.io/Json_explorer/",
+  "homepage": "https://jsb0315.github.io/Json-explorer/",
   "peerDependencies": {
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
